@@ -402,8 +402,12 @@ def seo_log_edit(request, pk):
 
 @login_required
 def settings_view(request):
-    # Get or create user settings
-    settings, created = UserSettings.objects.get_or_create(user=request.user)
+    """Main settings view that shows all settings categories."""
+    try:
+        settings = request.user.settings
+    except UserSettings.DoesNotExist:
+        settings = UserSettings.objects.create(user=request.user)
+    
     return render(request, 'core/settings.html', {
         'title': 'Settings',
         'settings': settings,
@@ -411,56 +415,86 @@ def settings_view(request):
 
 @login_required
 def settings_notifications(request):
+    """Handle notification settings."""
+    settings = request.user.settings
     if request.method == 'POST':
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
-        settings.notify_new_project = 'notify_new_project' in request.POST
-        settings.notify_new_log = 'notify_new_log' in request.POST
-        settings.notify_report = 'notify_report' in request.POST
+        settings.notify_new_project = request.POST.get('notify_new_project') == 'on'
+        settings.notify_new_log = request.POST.get('notify_new_log') == 'on'
+        settings.notify_report = request.POST.get('notify_report') == 'on'
         settings.save()
         messages.success(request, 'Notification settings updated successfully.')
-    return redirect('settings')
+        return redirect('settings_notifications')
+    
+    return render(request, 'core/settings_notifications.html', {
+        'title': 'Notification Settings',
+        'settings': settings,
+    })
 
 @login_required
 def settings_appearance(request):
+    """Handle appearance settings."""
+    settings = request.user.settings
     if request.method == 'POST':
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
         settings.theme = request.POST.get('theme', 'light')
         settings.date_format = request.POST.get('date_format', 'YYYY-MM-DD')
         settings.save()
         messages.success(request, 'Appearance settings updated successfully.')
-    return redirect('settings')
+        return redirect('settings_appearance')
+    
+    return render(request, 'core/settings_appearance.html', {
+        'title': 'Appearance Settings',
+        'settings': settings,
+    })
 
 @login_required
 def settings_reports(request):
+    """Handle report settings."""
+    settings = request.user.settings
     if request.method == 'POST':
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
-        settings.report_format = request.POST.get('report_format', 'pdf')
-        if 'report_logo' in request.FILES:
+        if request.FILES.get('report_logo'):
             settings.report_logo = request.FILES['report_logo']
+        settings.report_format = request.POST.get('report_format', 'pdf')
         settings.save()
         messages.success(request, 'Report settings updated successfully.')
-    return redirect('settings')
+        return redirect('settings_reports')
+    
+    return render(request, 'core/settings_reports.html', {
+        'title': 'Report Settings',
+        'settings': settings,
+    })
 
 @login_required
 def settings_integrations(request):
+    """Handle integration settings."""
+    settings = request.user.settings
     if request.method == 'POST':
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
         settings.ga_tracking_id = request.POST.get('ga_tracking_id', '')
         settings.gsc_verification = request.POST.get('gsc_verification', '')
         settings.save()
         messages.success(request, 'Integration settings updated successfully.')
-    return redirect('settings')
+        return redirect('settings_integrations')
+    
+    return render(request, 'core/settings_integrations.html', {
+        'title': 'Integration Settings',
+        'settings': settings,
+    })
 
 @login_required
 @role_required(['admin'])
 def settings_system(request):
+    """Handle system settings (admin only)."""
+    settings = request.user.settings
     if request.method == 'POST':
-        settings, _ = UserSettings.objects.get_or_create(user=request.user)
         settings.smtp_host = request.POST.get('smtp_host', '')
-        settings.smtp_port = request.POST.get('smtp_port') or None
+        settings.smtp_port = request.POST.get('smtp_port')
         settings.smtp_security = request.POST.get('smtp_security', 'tls')
-        settings.auto_backup = 'auto_backup' in request.POST
+        settings.auto_backup = request.POST.get('auto_backup') == 'on'
         settings.backup_frequency = request.POST.get('backup_frequency', 'weekly')
         settings.save()
         messages.success(request, 'System settings updated successfully.')
-    return redirect('settings')
+        return redirect('settings_system')
+    
+    return render(request, 'core/settings_system.html', {
+        'title': 'System Settings',
+        'settings': settings,
+    })

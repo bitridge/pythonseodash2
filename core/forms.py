@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
-from .models import CustomUser, Client, Project, SEOLog, ReportSection, Media
+from .models import CustomUser, Client, Project, SEOLog, ReportSection, Media, SEOLogFile
 
 class CustomUserForm(UserChangeForm):
     class Meta:
@@ -43,22 +43,88 @@ class ProjectForm(forms.ModelForm):
             raise forms.ValidationError("End date cannot be earlier than start date.")
         return cleaned_data
 
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
 class SEOLogForm(forms.ModelForm):
+    on_page_files = forms.FileField(
+        required=False,
+        widget=MultipleFileInput(attrs={'class': 'form-control'}),
+        help_text='Upload files related to on-page SEO work'
+    )
+    off_page_files = forms.FileField(
+        required=False,
+        widget=MultipleFileInput(attrs={'class': 'form-control'}),
+        help_text='Upload files related to off-page SEO work'
+    )
+    providers = forms.ModelMultipleChoiceField(
+        queryset=CustomUser.objects.filter(role='provider'),
+        required=False,
+        widget=forms.SelectMultiple(attrs={'class': 'form-select'})
+    )
+
     class Meta:
         model = SEOLog
-        fields = ['project', 'date', 'on_page_work', 'off_page_work']
+        fields = [
+            'project', 'date', 'on_page_work', 'on_page_description',
+            'off_page_work', 'off_page_description', 'providers'
+        ]
         widgets = {
             'project': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'on_page_work': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'off_page_work': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'on_page_work': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'off_page_work': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'on_page_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe the on-page SEO work performed...'
+            }),
+            'off_page_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Describe the off-page SEO work performed...'
+            }),
         }
 
-    def __init__(self, user=None, *args, **kwargs):
+    def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if user and user.role == 'provider':
-            # Filter projects based on SEO logs created by the provider
-            self.fields['project'].queryset = Project.objects.filter(seolog__created_by=user).distinct()
+        if user.role == 'provider':
+            self.fields['project'].queryset = Project.objects.filter(
+                seolog__created_by=user
+            ).distinct()
+        elif user.role == 'admin':
+            self.fields['project'].queryset = Project.objects.all()
+        else:
+            self.fields['project'].queryset = Project.objects.none()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            # Handle file uploads for on-page work
+            for file in self.files.getlist('on_page_files'):
+                SEOLogFile.objects.create(
+                    seo_log=instance,
+                    file=file,
+                    work_type='on_page',
+                    file_name=file.name,
+                    file_type=file.content_type,
+                    file_size=file.size
+                )
+            # Handle file uploads for off-page work
+            for file in self.files.getlist('off_page_files'):
+                SEOLogFile.objects.create(
+                    seo_log=instance,
+                    file=file,
+                    work_type='off_page',
+                    file_name=file.name,
+                    file_type=file.content_type,
+                    file_size=file.size
+                )
+            # Handle provider assignments
+            if 'providers' in self.cleaned_data:
+                instance.providers.set(self.cleaned_data['providers'])
+        return instance
 
 class ReportSectionForm(forms.ModelForm):
     class Meta:
