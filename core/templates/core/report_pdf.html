@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ project.name }} - SEO Report</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2.5cm;
+            @top-right {
+                content: counter(page);
+            }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2cm;
+        }
+        .header h1 {
+            color: #2c3e50;
+            font-size: 24pt;
+            margin-bottom: 0.5cm;
+        }
+        .header p {
+            color: #7f8c8d;
+            font-size: 12pt;
+        }
+        .section {
+            margin-bottom: 1.5cm;
+        }
+        .section h2 {
+            color: #2c3e50;
+            font-size: 16pt;
+            border-bottom: 1px solid #bdc3c7;
+            padding-bottom: 0.2cm;
+            margin-bottom: 0.5cm;
+        }
+        .project-info {
+            background-color: #f9f9f9;
+            padding: 0.5cm;
+            margin-bottom: 1cm;
+        }
+        .project-info dt {
+            font-weight: bold;
+            float: left;
+            width: 4cm;
+        }
+        .project-info dd {
+            margin-left: 4.5cm;
+            margin-bottom: 0.2cm;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1cm;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 0.3cm;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f6fa;
+            font-weight: bold;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 9pt;
+            color: #7f8c8d;
+            border-top: 1px solid #bdc3c7;
+            padding-top: 0.3cm;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SEO Progress Report</h1>
+        <p>{{ project.name }}</p>
+    </div>
+
+    <div class="section">
+        <h2>Project Information</h2>
+        <div class="project-info">
+            <dl>
+                <dt>Client:</dt>
+                <dd>{{ project.client.name }}</dd>
+                <dt>Website:</dt>
+                <dd>{{ project.client.website }}</dd>
+                <dt>Start Date:</dt>
+                <dd>{{ project.start_date }}</dd>
+                {% if project.end_date %}
+                <dt>End Date:</dt>
+                <dd>{{ project.end_date }}</dd>
+                {% endif %}
+                <dt>Status:</dt>
+                <dd>{% if not project.end_date %}Active{% else %}Completed{% endif %}</dd>
+            </dl>
+        </div>
+    </div>
+
+    {% if report_sections %}
+    <div class="section">
+        <h2>Report Sections</h2>
+        {% for section in report_sections %}
+        <div class="section">
+            <h3>{{ section.title }}</h3>
+            {% if section.image %}
+            <img src="{{ section.image.url }}" alt="{{ section.title }}">
+            {% endif %}
+            {{ section.content|linebreaks }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if seo_logs %}
+    <div class="section">
+        <h2>SEO Activities</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>On-Page Work</th>
+                    <th>Off-Page Work</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in seo_logs %}
+                <tr>
+                    <td>{{ log.date }}</td>
+                    <td>{{ log.on_page_work }}</td>
+                    <td>{{ log.off_page_work }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="footer">
+        Generated on {{ generated_date|date:"F d, Y" }} by {{ generated_by.get_full_name|default:generated_by.username }}
+    </div>
+</body>
+</html> 

@@ -68,3 +68,59 @@ class Media(models.Model):
 
     def __str__(self):
         return f"{self.seo_log.project.name} - {self.file_type}"
+
+class UserSettings(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='settings')
+    
+    # Notification Settings
+    notify_new_project = models.BooleanField(default=True)
+    notify_new_log = models.BooleanField(default=True)
+    notify_report = models.BooleanField(default=True)
+    
+    # Appearance Settings
+    theme = models.CharField(max_length=10, default='light', choices=[
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+        ('auto', 'System Default'),
+    ])
+    date_format = models.CharField(max_length=20, default='YYYY-MM-DD', choices=[
+        ('MM/DD/YYYY', 'MM/DD/YYYY'),
+        ('DD/MM/YYYY', 'DD/MM/YYYY'),
+        ('YYYY-MM-DD', 'YYYY-MM-DD'),
+    ])
+    
+    # Report Settings
+    report_format = models.CharField(max_length=10, default='pdf', choices=[
+        ('pdf', 'PDF'),
+        ('excel', 'Excel'),
+    ])
+    report_logo = models.ImageField(upload_to='report_logos/', null=True, blank=True)
+    
+    # Integration Settings
+    ga_tracking_id = models.CharField(max_length=50, blank=True)
+    gsc_verification = models.CharField(max_length=100, blank=True)
+    
+    # System Settings (Admin Only)
+    smtp_host = models.CharField(max_length=100, blank=True)
+    smtp_port = models.IntegerField(null=True, blank=True)
+    smtp_security = models.CharField(max_length=10, default='tls', choices=[
+        ('tls', 'TLS'),
+        ('ssl', 'SSL'),
+        ('none', 'None'),
+    ])
+    auto_backup = models.BooleanField(default=False)
+    backup_frequency = models.CharField(max_length=10, default='weekly', choices=[
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ])
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Settings for {self.user.username}"
+
+    class Meta:
+        verbose_name = 'User Settings'
+        verbose_name_plural = 'User Settings'

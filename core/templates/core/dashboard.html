@@ -1,0 +1,224 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - SEO Work Log{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">Dashboard</h1>
+
+    {% if user.role == 'admin' %}
+    <!-- Admin Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Clients</h6>
+                            <h2 class="mb-0">{{ total_clients }}</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-users fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Active Projects</h6>
+                            <h2 class="mb-0">{{ total_projects }}</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-project-diagram fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Active Users</h6>
+                            <h2 class="mb-0">{{ active_users }}</h2>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-user-check fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Storage Used</h6>
+                            <h2 class="mb-0">{{ storage_used }}</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-database fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.role == 'provider' %}
+    <!-- Provider Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Assigned Projects</h6>
+                            <h2 class="mb-0">{{ assigned_projects.count }}</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-project-diagram fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Recent Logs</h6>
+                            <h2 class="mb-0">{{ recent_logs.count }}</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-tasks fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Reports Generated</h6>
+                            <h2 class="mb-0">{{ reports_count }}</h2>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-file-alt fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if user.role == 'client' %}
+    <!-- Client Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">My Projects</h6>
+                            <h2 class="mb-0">{{ client_projects.count }}</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-project-diagram fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Recent Updates</h6>
+                            <h2 class="mb-0">{{ recent_logs.count }}</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-chart-line fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Reports Available</h6>
+                            <h2 class="mb-0">{{ reports_count }}</h2>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-file-alt fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_logs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Project</th>
+                                    <th>Type</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_logs %}
+                                <tr>
+                                    <td>{{ log.date }}</td>
+                                    <td>{{ log.project.name }}</td>
+                                    <td>
+                                        {% if log.on_page_work %}On-Page{% endif %}
+                                        {% if log.off_page_work %}Off-Page{% endif %}
+                                    </td>
+                                    <td>{{ log.description|truncatechars:100 }}</td>
+                                    <td>
+                                        <span class="badge bg-success">Completed</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No recent activity to display.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

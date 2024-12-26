@@ -1,0 +1,125 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}SEO Logs - SEO Work Log{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">SEO Logs</h1>
+        <a href="{% url 'seo_log_add' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add SEO Log
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               placeholder="Search logs..." value="{{ request.GET.search }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="project" class="form-label">Project</label>
+                    <select class="form-select" id="project" name="project">
+                        <option value="">All Projects</option>
+                        {% for project in projects %}
+                        <option value="{{ project.id }}" {% if request.GET.project == project.id|stringformat:"s" %}selected{% endif %}>
+                            {{ project.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="type" class="form-label">Type</label>
+                    <select class="form-select" id="type" name="type">
+                        <option value="">All Types</option>
+                        <option value="on_page" {% if request.GET.type == 'on_page' %}selected{% endif %}>On-Page</option>
+                        <option value="off_page" {% if request.GET.type == 'off_page' %}selected{% endif %}>Off-Page</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="date" class="form-label">Date Range</label>
+                    <select class="form-select" id="date" name="date">
+                        <option value="">All Time</option>
+                        <option value="today" {% if request.GET.date == 'today' %}selected{% endif %}>Today</option>
+                        <option value="week" {% if request.GET.date == 'week' %}selected{% endif %}>This Week</option>
+                        <option value="month" {% if request.GET.date == 'month' %}selected{% endif %}>This Month</option>
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SEO Logs List -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if logs %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Project</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Created By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.date }}</td>
+                            <td>
+                                <a href="{% url 'project_detail' log.project.pk %}" class="text-decoration-none">
+                                    {{ log.project.name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if log.on_page_work %}
+                                <span class="badge bg-primary">On-Page</span>
+                                {% endif %}
+                                {% if log.off_page_work %}
+                                <span class="badge bg-success">Off-Page</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ log.description|truncatechars:100 }}</td>
+                            <td>{{ log.created_by.get_full_name|default:log.created_by.username }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{% url 'seo_log_detail' log.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'seo_log_edit' log.pk %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-0">No SEO logs found.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

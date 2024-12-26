@@ -1,0 +1,77 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ title }} - SEO Work Log{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3">{{ project.name }} Report</h1>
+        <div>
+            <a href="{% url 'report_generate' project.pk %}" class="btn btn-success">
+                <i class="fas fa-file-pdf me-2"></i>Download PDF Report
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Project Information -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Project Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Client</dt>
+                        <dd class="col-sm-8">
+                            <a href="{% url 'client_detail' project.client.pk %}">{{ project.client.name }}</a>
+                        </dd>
+                        
+                        <dt class="col-sm-4">Start Date</dt>
+                        <dd class="col-sm-8">{{ project.start_date }}</dd>
+                        
+                        {% if project.end_date %}
+                        <dt class="col-sm-4">End Date</dt>
+                        <dd class="col-sm-8">{{ project.end_date }}</dd>
+                        {% endif %}
+                        
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">
+                            {% if not project.end_date %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Completed</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Sections -->
+        <div class="col-md-8 mb-4">
+            {% if report_sections %}
+                {% for section in report_sections %}
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">{{ section.title }}</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if section.image %}
+                            <img src="{{ section.image.url }}" alt="{{ section.title }}" class="img-fluid mb-3">
+                        {% endif %}
+                        {{ section.content|linebreaks }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <p class="text-muted mb-0">No report sections available yet.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

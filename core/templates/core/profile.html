@@ -1,0 +1,125 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Profile - SEO Work Log{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h1 class="h3 mb-0">Profile Settings</h1>
+                </div>
+                <div class="card-body">
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                        {{ form.first_name.label }}
+                                    </label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.first_name.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                        {{ form.last_name.label }}
+                                    </label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.last_name.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                {{ form.email.label }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.email.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="{{ form.role.id_for_label }}" class="form-label">
+                                {{ form.role.label }}
+                                <span class="text-danger">*</span>
+                            </label>
+                            {{ form.role }}
+                            {% if form.role.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.role.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            To change your password, please use the password change form in the admin interface.
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Account Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Username</dt>
+                        <dd class="col-sm-8">{{ user.username }}</dd>
+                        
+                        <dt class="col-sm-4">Date Joined</dt>
+                        <dd class="col-sm-8">{{ user.date_joined|date:"F d, Y" }}</dd>
+                        
+                        <dt class="col-sm-4">Last Login</dt>
+                        <dd class="col-sm-8">{{ user.last_login|date:"F d, Y H:i" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
