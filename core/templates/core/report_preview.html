@@ -1,0 +1,89 @@
+<div class="report-preview">
+    <div class="header text-center mb-4">
+        {% if project.client.logo %}
+        <img src="{{ project.client.logo.url }}" alt="{{ project.client.name }} Logo" class="client-logo mb-3" style="max-height: 100px;">
+        {% endif %}
+        <h1>SEO Progress Report</h1>
+        <h2>{{ project.name }}</h2>
+    </div>
+
+    <div class="project-info mb-4">
+        <p><strong>Website:</strong> {{ project.website_url }}</p>
+        <p><strong>Report Period:</strong> {{ seo_logs.first.date|date:"F j, Y" }} - {{ seo_logs.last.date|date:"F j, Y" }}</p>
+        <p><strong>Generated:</strong> {{ generated_date|date:"F j, Y" }}</p>
+    </div>
+
+    {% if custom_sections %}
+    {% for section in custom_sections %}
+    <div class="section mb-4">
+        <h3 class="section-title bg-light p-2 border-start border-4 border-primary">{{ section.title }}</h3>
+        <div class="section-content">
+            {{ section.content|linebreaks }}
+            {% if section.image %}
+            <div class="text-center">
+                <img src="{{ section.image.url }}" alt="{{ section.title }}" class="img-fluid mt-3" style="max-height: 400px;">
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="section mb-4">
+        <h3 class="section-title bg-light p-2 border-start border-4 border-primary">SEO Activities</h3>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in seo_logs %}
+                    {% if log.on_page_work or log.off_page_work %}
+                    <tr>
+                        <td>{{ log.date|date:"M j, Y" }}</td>
+                        <td>
+                            {% if log.on_page_work %}
+                            <span class="badge bg-primary">On-Page</span>
+                            {% endif %}
+                            {% if log.off_page_work %}
+                            <span class="badge bg-purple">Off-Page</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.on_page_work %}
+                            {{ log.on_page_description|linebreaks }}
+                            {% endif %}
+                            {% if log.off_page_work %}
+                            {{ log.off_page_description|linebreaks }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if files %}
+    <div class="section">
+        <h3 class="section-title bg-light p-2 border-start border-4 border-primary">Attached Files</h3>
+        <ul class="list-group">
+            {% for file in files %}
+            <li class="list-group-item">
+                <i class="{{ file.file_icon }} me-2"></i>
+                <strong>{{ file.file_name }}</strong>
+                <span class="badge {% if file.work_type == 'on_page' %}bg-primary{% else %}bg-purple{% endif %} ms-2">
+                    {{ file.get_work_type_display }}
+                </span>
+                <small class="text-muted ms-2">({{ file.file_size_formatted }})</small>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div> 

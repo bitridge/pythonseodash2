@@ -98,9 +98,13 @@ class SEOLogForm(forms.ModelForm):
         if not self.instance.pk:  # Only for new instances
             self.initial['date'] = timezone.now().date()
 
-        # Filter projects based on user role
+        # Filter projects based on user role and active status
         if user.role == 'provider':
-            self.fields['project'].queryset = Project.objects.filter(providers=user)
+            self.fields['project'].queryset = Project.objects.filter(
+                providers=user,
+                is_active=True,
+                client__is_active=True
+            )
         elif user.role == 'admin':
             self.fields['project'].queryset = Project.objects.all()
         else:

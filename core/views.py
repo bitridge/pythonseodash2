@@ -62,9 +62,9 @@ def dashboard(request):
                 project__client__is_active=True
             ).values('project').distinct().count(),
         })
-    else:  # client
+    else:  # customer
         context.update({
-            'client_projects': Project.objects.filter(
+            'customer_projects': Project.objects.filter(
                 client__email=request.user.email,
                 is_active=True,
                 client__is_active=True
@@ -157,7 +157,7 @@ def project_list(request):
             is_active=True,
             client__is_active=True
         )
-    else:  # client
+    else:  # customer
         projects = Project.objects.filter(
             client__email=request.user.email,
             is_active=True,
@@ -252,7 +252,7 @@ def seo_log_add(request):
 
 @login_required
 def report_list(request):
-    if request.user.role == 'client':
+    if request.user.role == 'customer':
         projects = Project.objects.filter(client__email=request.user.email)
     elif request.user.role == 'provider':
         projects = Project.objects.filter(seolog__created_by=request.user).distinct()
@@ -267,7 +267,7 @@ def report_list(request):
 @login_required
 def report_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    if request.user.role == 'client' and project.client.email != request.user.email:
+    if request.user.role == 'customer' and project.client.email != request.user.email:
         return HttpResponseForbidden("You don't have permission to access this report.")
     
     report_sections = ReportSection.objects.filter(project=project).order_by('order')
@@ -286,6 +286,7 @@ def report_generate(request, pk):
         selected_files = request.POST.getlist('selected_files')
         section_titles = request.POST.getlist('section_titles[]')
         section_contents = request.POST.getlist('section_contents[]')
+        section_images = request.FILES.getlist('section_images[]')
         
         # Get selected logs and files
         seo_logs = SEOLog.objects.filter(id__in=selected_logs).order_by('date')
@@ -293,14 +294,18 @@ def report_generate(request, pk):
         
         # Prepare custom sections
         custom_sections = []
-        for title, content in zip(section_titles, section_contents):
+        for i, (title, content) in enumerate(zip(section_titles, section_contents)):
             if title and content:  # Only add if both title and content are provided
-                custom_sections.append({
+                section_data = {
                     'title': title,
-                    'content': content
-                })
+                    'content': content,
+                }
+                # Add image if available
+                if i < len(section_images) and section_images[i]:
+                    section_data['image'] = section_images[i]
+                custom_sections.append(section_data)
         
-        # Generate PDF report
+        # Generate context
         context = {
             'project': project,
             'seo_logs': seo_logs,
@@ -309,7 +314,11 @@ def report_generate(request, pk):
             'generated_date': timezone.now()
         }
         
-        # Render PDF template
+        # If preview requested, return HTML content
+        if request.POST.get('preview') == 'true':
+            return render(request, 'core/report_preview.html', context)
+        
+        # Generate PDF report
         template = get_template('core/report_pdf.html')
         html = template.render(context)
         
@@ -362,7 +371,7 @@ def client_edit(request, pk):
 @login_required
 def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    if request.user.role == 'client' and project.client.email != request.user.email:
+    if request.user.role == 'customer' and project.client.email != request.user.email:
         return HttpResponseForbidden("You don't have permission to access this project.")
     
     seo_logs = SEOLog.objects.filter(project=project).order_by('-date')

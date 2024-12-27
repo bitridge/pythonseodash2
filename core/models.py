@@ -5,9 +5,9 @@ class CustomUser(AbstractUser):
     ROLE_CHOICES = (
         ('admin', 'Administrator'),
         ('provider', 'Provider'),
-        ('client', 'Client'),
+        ('customer', 'Customer'),
     )
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='client')
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
 
 class Client(models.Model):
     name = models.CharField(max_length=255)
