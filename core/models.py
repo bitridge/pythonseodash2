@@ -14,6 +14,7 @@ class Client(models.Model):
     email = models.EmailField(unique=True)
     website = models.URLField()
     logo = models.ImageField(upload_to='logos/', null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -26,6 +27,7 @@ class Project(models.Model):
     description = models.TextField()
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     providers = models.ManyToManyField(CustomUser, related_name='assigned_projects', blank=True, limit_choices_to={'role': 'provider'})
@@ -70,7 +72,18 @@ class SEOLogFile(models.Model):
         if not self.file_name:
             self.file_name = self.file.name
         if not self.file_type:
-            self.file_type = self.file.content_type
+            # Get file type from extension
+            ext = self.file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                self.file_type = f'image/{ext}'
+            elif ext == 'pdf':
+                self.file_type = 'application/pdf'
+            elif ext in ['doc', 'docx']:
+                self.file_type = 'application/msword'
+            elif ext in ['xls', 'xlsx']:
+                self.file_type = 'application/vnd.ms-excel'
+            else:
+                self.file_type = 'application/octet-stream'
         if not self.file_size:
             self.file_size = self.file.size
         super().save(*args, **kwargs)
@@ -116,7 +129,9 @@ class SEOLogFile(models.Model):
 class ReportSection(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
-    content = models.TextField()
+    content = models.TextField(blank=True)  # Custom content
+    seo_logs = models.ManyToManyField(SEOLog, blank=True, related_name='report_sections')
+    files = models.ManyToManyField(SEOLogFile, blank=True, related_name='report_sections')
     image = models.ImageField(upload_to='report_images/', null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

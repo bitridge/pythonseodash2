@@ -7,7 +7,15 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3">{{ client.name }}</h1>
         <div>
-            <a href="{% url 'client_edit' client.pk %}" class="btn btn-primary">
+            {% if user.role == 'admin' %}
+            <a href="{% url 'client_toggle_status' client.pk %}" 
+               class="btn {% if client.is_active %}btn-warning{% else %}btn-success{% endif %}"
+               onclick="return confirm('Are you sure you want to {% if client.is_active %}deactivate{% else %}activate{% endif %} this client?')">
+                <i class="fas {% if client.is_active %}fa-ban{% else %}fa-check{% endif %} me-2"></i>
+                {% if client.is_active %}Deactivate{% else %}Activate{% endif %} Client
+            </a>
+            {% endif %}
+            <a href="{% url 'client_edit' client.pk %}" class="btn btn-primary ms-2">
                 <i class="fas fa-edit me-2"></i>Edit Client
             </a>
         </div>

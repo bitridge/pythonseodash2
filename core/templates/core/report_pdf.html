@@ -2,11 +2,14 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>SEO Report - {{ project.name }}</title>
+    <title>{{ project.name }} - SEO Report</title>
     <style>
         @page {
-            size: a4 portrait;
-            margin: 2cm;
+            size: letter portrait;
+            margin: 2.5cm;
+            @top-right {
+                content: "Page " counter(page) " of " counter(pages);
+            }
         }
         body {
             font-family: Arial, sans-serif;
@@ -15,83 +18,68 @@
         }
         .header {
             text-align: center;
-            margin-bottom: 2cm;
-            position: relative;
+            margin-bottom: 2em;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1em;
         }
         .client-logo {
+            display: block;
             max-width: 200px;
             max-height: 100px;
-            position: absolute;
-            top: 0;
-            right: 0;
+            margin: 0 auto 1em auto;
         }
-        h1 {
-            color: #2c3e50;
-            font-size: 24px;
-            margin-bottom: 0.5cm;
+        .report-title {
+            text-align: center;
         }
         .project-info {
-            margin-bottom: 1cm;
-            padding: 0.5cm;
-            background-color: #f8f9fa;
+            margin-bottom: 2em;
+        }
+        .section {
+            margin-bottom: 2em;
+        }
+        .section-title {
+            background-color: #f5f5f5;
+            padding: 0.5em;
+            margin-bottom: 1em;
+            border-left: 4px solid #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1em;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 0.5em;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f5f5;
+        }
+        .file-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .file-item {
+            margin-bottom: 0.5em;
+            padding: 0.5em;
+            background-color: #f9f9f9;
             border-radius: 4px;
         }
-        .project-info p {
-            margin: 0.2cm 0;
+        .work-type-badge {
+            display: inline-block;
+            padding: 0.25em 0.5em;
+            border-radius: 3px;
+            font-size: 0.9em;
+            margin-right: 0.5em;
         }
-        .activity-date {
-            background-color: #f8f9fa;
-            padding: 0.3cm;
-            margin: 1cm 0 0.5cm 0;
-            border-radius: 4px;
-            font-weight: bold;
+        .on-page {
+            background-color: #e3f2fd;
+            color: #1565c0;
         }
-        .work-section {
-            margin: 0.5cm 0;
-            padding: 0.5cm;
-            border: 1px solid #eee;
-            border-radius: 4px;
-        }
-        .work-section h4 {
-            color: #2c3e50;
-            margin: 0 0 0.3cm 0;
-        }
-        .work-description {
-            margin: 0.3cm 0;
-            white-space: pre-wrap;
-        }
-        .file-attachment {
-            margin: 0.3cm 0;
-            padding: 0.2cm;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .file-attachment a {
-            color: #3498db;
-            text-decoration: none;
-        }
-        .image-attachment {
-            margin: 0.5cm 0;
-            text-align: center;
-        }
-        .image-attachment img {
-            max-width: 100%;
-            max-height: 300px;
-            object-fit: contain;
-        }
-        .footer {
-            position: running(footer);
-            text-align: center;
-            font-size: 12px;
-            color: #7f8c8d;
-            padding-top: 0.5cm;
-            border-top: 1px solid #eee;
-        }
-        @page {
-            @bottom-center {
-                content: element(footer);
-            }
+        .off-page {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
         }
     </style>
 </head>
@@ -100,75 +88,82 @@
         {% if project.client.logo %}
         <img src="{{ project.client.logo.url }}" alt="{{ project.client.name }} Logo" class="client-logo">
         {% endif %}
-        <h1>SEO Activity Report</h1>
+        <div class="report-title">
+            <h1>SEO Progress Report</h1>
+            <h2>{{ project.name }}</h2>
+        </div>
     </div>
 
     <div class="project-info">
-        <p><strong>Project:</strong> {{ project.name }}</p>
-        <p><strong>Client:</strong> {{ project.client.name }}</p>
-        <p><strong>Report Period:</strong> {{ seo_logs.last.date|date:"F j, Y" }} - {{ seo_logs.first.date|date:"F j, Y" }}</p>
+        <p><strong>Website:</strong> {{ project.website_url }}</p>
+        <p><strong>Report Period:</strong> {{ seo_logs.first.date|date:"F j, Y" }} - {{ seo_logs.last.date|date:"F j, Y" }}</p>
         <p><strong>Generated:</strong> {{ generated_date|date:"F j, Y" }}</p>
     </div>
 
-    {% regroup seo_logs by date as logs_by_date %}
-    {% for date in logs_by_date %}
-    <div class="activity-date">
-        {{ date.grouper|date:"F j, Y" }}
+    {% if custom_sections %}
+    {% for section in custom_sections %}
+    <div class="section">
+        <h3 class="section-title">{{ section.title }}</h3>
+        <div class="section-content">
+            {{ section.content|linebreaks }}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="section">
+        <h3 class="section-title">SEO Activities</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in seo_logs %}
+                {% if log.on_page_work or log.off_page_work %}
+                <tr>
+                    <td>{{ log.date|date:"M j, Y" }}</td>
+                    <td>
+                        {% if log.on_page_work %}
+                        <span class="work-type-badge on-page">On-Page</span>
+                        {% endif %}
+                        {% if log.off_page_work %}
+                        <span class="work-type-badge off-page">Off-Page</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.on_page_work %}
+                        {{ log.on_page_description|linebreaks }}
+                        {% endif %}
+                        {% if log.off_page_work %}
+                        {{ log.off_page_description|linebreaks }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
-    {% for log in date.list %}
-        {% if log.on_page_work %}
-        <div class="work-section">
-            <h4>On-Page SEO Activities</h4>
-            <div class="work-description">{{ log.on_page_description }}</div>
-            
-            {% for file in log.files.all %}
-                {% if file.work_type == 'on_page' %}
-                    {% if file.is_image %}
-                    <div class="image-attachment">
-                        <img src="{{ file.file.url }}" alt="{{ file.file_name }}">
-                        <p>{{ file.file_name }}</p>
-                    </div>
-                    {% else %}
-                    <div class="file-attachment">
-                        <a href="{{ file.file.url }}" target="_blank">
-                            {{ file.file_name }} ({{ file.file_size_formatted }})
-                        </a>
-                    </div>
-                    {% endif %}
-                {% endif %}
+    {% if files %}
+    <div class="section">
+        <h3 class="section-title">Attached Files</h3>
+        <ul class="file-list">
+            {% for file in files %}
+            <li class="file-item">
+                <strong>{{ file.file_name }}</strong>
+                <span class="work-type-badge {% if file.work_type == 'on_page' %}on-page{% else %}off-page{% endif %}">
+                    {{ file.get_work_type_display }}
+                </span>
+                <small>({{ file.file_size_formatted }})</small>
+            </li>
             {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if log.off_page_work %}
-        <div class="work-section">
-            <h4>Off-Page SEO Activities</h4>
-            <div class="work-description">{{ log.off_page_description }}</div>
-            
-            {% for file in log.files.all %}
-                {% if file.work_type == 'off_page' %}
-                    {% if file.is_image %}
-                    <div class="image-attachment">
-                        <img src="{{ file.file.url }}" alt="{{ file.file_name }}">
-                        <p>{{ file.file_name }}</p>
-                    </div>
-                    {% else %}
-                    <div class="file-attachment">
-                        <a href="{{ file.file.url }}" target="_blank">
-                            {{ file.file_name }} ({{ file.file_size_formatted }})
-                        </a>
-                    </div>
-                    {% endif %}
-                {% endif %}
-            {% endfor %}
-        </div>
-        {% endif %}
-    {% endfor %}
-    {% endfor %}
-
-    <div class="footer">
-        Generated by SEO Work Log | Page <pdf:pagenumber> of <pdf:pagecount>
+        </ul>
     </div>
+    {% endif %}
 </body>
 </html> 

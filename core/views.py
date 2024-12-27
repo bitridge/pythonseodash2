@@ -3,15 +3,15 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse
 from functools import wraps
-from .models import Client, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser
+from .models import Client, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser, SEOLogFile
 from .forms import (
     CustomUserForm, ClientForm, ProjectForm, SEOLogForm,
     ReportSectionForm, MediaForm
 )
-from django.template.loader import render_to_string
-import weasyprint
+from django.template.loader import render_to_string, get_template
 from django.utils import timezone
 from django.conf import settings
+from weasyprint import HTML
 
 def role_required(roles):
     def decorator(view_func):
@@ -45,24 +45,40 @@ def dashboard(request):
         })
     elif request.user.role == 'provider':
         context.update({
-            'assigned_projects': Project.objects.filter(providers=request.user),
+            'assigned_projects': Project.objects.filter(
+                providers=request.user,
+                is_active=True,
+                client__is_active=True
+            ),
             'recent_logs': SEOLog.objects.filter(
                 created_by=request.user,
-                date__gte=thirty_days_ago
+                date__gte=thirty_days_ago,
+                project__is_active=True,
+                project__client__is_active=True
             ).order_by('-date')[:10],
             'reports_count': ReportSection.objects.filter(
-                project__providers=request.user
+                project__providers=request.user,
+                project__is_active=True,
+                project__client__is_active=True
             ).values('project').distinct().count(),
         })
     else:  # client
         context.update({
-            'client_projects': Project.objects.filter(client__email=request.user.email),
+            'client_projects': Project.objects.filter(
+                client__email=request.user.email,
+                is_active=True,
+                client__is_active=True
+            ),
             'recent_logs': SEOLog.objects.filter(
                 project__client__email=request.user.email,
-                date__gte=thirty_days_ago
+                date__gte=thirty_days_ago,
+                project__is_active=True,
+                project__client__is_active=True
             ).order_by('-date')[:10],
             'reports_count': ReportSection.objects.filter(
-                project__client__email=request.user.email
+                project__client__email=request.user.email,
+                project__is_active=True,
+                project__client__is_active=True
             ).values('project').distinct().count(),
         })
     
@@ -92,17 +108,17 @@ def get_last_backup_date():
 @login_required
 def profile_view(request):
     if request.method == 'POST':
-        form = CustomUserForm(request.POST, instance=request.user)
+        form = CustomUserForm(request.POST, instance=request.user, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Profile updated successfully.')
             return redirect('profile')
     else:
-        form = CustomUserForm(instance=request.user)
+        form = CustomUserForm(instance=request.user, user=request.user)
     
     return render(request, 'core/profile.html', {
-        'title': 'Profile',
-        'form': form,
+        'title': 'Profile Settings',
+        'form': form
     })
 
 @login_required
@@ -133,37 +149,24 @@ def client_add(request):
 
 @login_required
 def project_list(request):
-    if request.user.role == 'client':
-        projects = Project.objects.filter(client__email=request.user.email)
-        clients = Client.objects.filter(email=request.user.email)
-    else:
+    if request.user.role == 'admin':
         projects = Project.objects.all()
-        clients = Client.objects.all()
-    
-    # Handle search
-    search_query = request.GET.get('search')
-    if search_query:
-        projects = projects.filter(name__icontains=search_query)
-    
-    # Handle status filter
-    status = request.GET.get('status')
-    if status == 'active':
-        projects = projects.filter(end_date__isnull=True)
-    elif status == 'completed':
-        projects = projects.filter(end_date__isnull=False)
-    
-    # Handle client filter
-    client_id = request.GET.get('client')
-    if client_id:
-        projects = projects.filter(client_id=client_id)
-    
-    # Order by most recent
-    projects = projects.order_by('-start_date')
+    elif request.user.role == 'provider':
+        projects = Project.objects.filter(
+            providers=request.user,
+            is_active=True,
+            client__is_active=True
+        )
+    else:  # client
+        projects = Project.objects.filter(
+            client__email=request.user.email,
+            is_active=True,
+            client__is_active=True
+        )
     
     return render(request, 'core/project_list.html', {
         'title': 'Projects',
         'projects': projects,
-        'clients': clients,
     })
 
 @login_required
@@ -277,35 +280,54 @@ def report_detail(request, pk):
 @login_required
 def report_generate(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    if request.user.role == 'client' and project.client.email != request.user.email:
-        return HttpResponseForbidden("You don't have permission to access this report.")
     
-    # Get project data
-    seo_logs = SEOLog.objects.filter(project=project).order_by('-date')
+    if request.method == 'POST':
+        selected_logs = request.POST.getlist('selected_logs')
+        selected_files = request.POST.getlist('selected_files')
+        section_titles = request.POST.getlist('section_titles[]')
+        section_contents = request.POST.getlist('section_contents[]')
+        
+        # Get selected logs and files
+        seo_logs = SEOLog.objects.filter(id__in=selected_logs).order_by('date')
+        files = SEOLogFile.objects.filter(id__in=selected_files)
+        
+        # Prepare custom sections
+        custom_sections = []
+        for title, content in zip(section_titles, section_contents):
+            if title and content:  # Only add if both title and content are provided
+                custom_sections.append({
+                    'title': title,
+                    'content': content
+                })
+        
+        # Generate PDF report
+        context = {
+            'project': project,
+            'seo_logs': seo_logs,
+            'files': files,
+            'custom_sections': custom_sections,
+            'generated_date': timezone.now()
+        }
+        
+        # Render PDF template
+        template = get_template('core/report_pdf.html')
+        html = template.render(context)
+        
+        # Create PDF
+        pdf = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
+        
+        # Create response
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{project.name}_report_{timezone.now().strftime("%Y%m%d")}.pdf"'
+        return response
     
-    # Prepare context for PDF template
+    # GET request - show form
     context = {
         'project': project,
-        'seo_logs': seo_logs,
-        'generated_date': timezone.now(),
-        'MEDIA_ROOT': settings.MEDIA_ROOT,
-        'base_url': request.build_absolute_uri('/')[:-1],
+        'seo_logs': SEOLog.objects.filter(project=project).order_by('-date'),
+        'files': SEOLogFile.objects.filter(seo_log__project=project)
     }
-    
-    # Render HTML content
-    html_string = render_to_string('core/report_pdf.html', context)
-    
-    # Configure WeasyPrint with base URL for handling static/media files
-    base_url = request.build_absolute_uri('/')
-    
-    # Generate PDF
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{project.name}_report_{timezone.now().strftime("%Y%m%d")}.pdf"'
-    
-    # Use the base_url to properly resolve media files
-    weasyprint.HTML(string=html_string, base_url=base_url).write_pdf(response)
-    
-    return response
+    return render(request, 'core/report_generate_form.html', context)
 
 @login_required
 @role_required(['admin', 'provider'])
@@ -355,13 +377,13 @@ def project_detail(request, pk):
 def project_edit(request, pk):
     project = get_object_or_404(Project, pk=pk)
     if request.method == 'POST':
-        form = ProjectForm(request.POST, instance=project)
+        form = ProjectForm(request.POST, instance=project, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, 'Project updated successfully.')
             return redirect('project_detail', pk=pk)
     else:
-        form = ProjectForm(instance=project)
+        form = ProjectForm(instance=project, user=request.user)
     
     return render(request, 'core/project_form.html', {
         'title': f'Edit Project: {project.name}',
@@ -501,3 +523,75 @@ def settings_system(request):
         'title': 'System Settings',
         'settings': settings,
     })
+
+@login_required
+@role_required(['admin'])
+def seo_log_delete(request, pk):
+    log = get_object_or_404(SEOLog, pk=pk)
+    project_id = log.project.id
+    log.delete()
+    messages.success(request, 'SEO log deleted successfully.')
+    return redirect('project_detail', pk=project_id)
+
+@login_required
+@role_required(['admin'])
+def report_delete(request, pk):
+    report = get_object_or_404(ReportSection, pk=pk)
+    project_id = report.project.id
+    report.delete()
+    messages.success(request, 'Report section deleted successfully.')
+    return redirect('report_detail', pk=project_id)
+
+@login_required
+def report_section_add(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        image = request.FILES.get('image')
+        seo_logs = request.POST.getlist('seo_logs')
+        files = request.POST.getlist('files')
+        
+        section = ReportSection.objects.create(
+            project=project,
+            title=title,
+            content=content,
+            image=image,
+            order=ReportSection.objects.filter(project=project).count() + 1
+        )
+        
+        if seo_logs:
+            section.seo_logs.set(seo_logs)
+        if files:
+            section.files.set(files)
+        
+        messages.success(request, 'Report section added successfully.')
+        return redirect('report_detail', pk=pk)
+    
+    return redirect('report_detail', pk=pk)
+
+@login_required
+@role_required(['admin'])
+def client_toggle_status(request, pk):
+    client = get_object_or_404(Client, pk=pk)
+    client.is_active = not client.is_active
+    client.save()
+    
+    # When deactivating a client, deactivate all their projects
+    if not client.is_active:
+        client.project_set.all().update(is_active=False)
+    
+    status = 'activated' if client.is_active else 'deactivated'
+    messages.success(request, f'Client {status} successfully.')
+    return redirect('client_detail', pk=pk)
+
+@login_required
+@role_required(['admin'])
+def project_toggle_status(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    project.is_active = not project.is_active
+    project.save()
+    status = 'activated' if project.is_active else 'deactivated'
+    messages.success(request, f'Project {status} successfully.')
+    return redirect('project_detail', pk=pk)

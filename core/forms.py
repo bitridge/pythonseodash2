@@ -3,14 +3,16 @@ from django.contrib.auth.forms import UserChangeForm
 from .models import CustomUser, Client, Project, SEOLog, ReportSection, Media, SEOLogFile
 from django.utils import timezone
 
-class CustomUserForm(UserChangeForm):
+class CustomUserForm(forms.ModelForm):
     class Meta:
         model = CustomUser
-        fields = ('first_name', 'last_name', 'email', 'role')
-        
+        fields = ['username', 'email', 'first_name', 'last_name', 'role']
+
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        self.fields.pop('password')
+        if user and user.role != 'admin':
+            self.fields.pop('role', None)  # Remove role field for non-admin users
 
 class ClientForm(forms.ModelForm):
     class Meta:
@@ -26,11 +28,21 @@ class ClientForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'client', 'description', 'providers']
+        fields = ['name', 'client', 'description', 'providers', 'start_date', 'end_date']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 4}),
-            'providers': forms.SelectMultiple(attrs={'class': 'form-control'})
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'client': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'providers': forms.SelectMultiple(attrs={'class': 'form-select'}),
+            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
         }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        if user and user.role != 'admin':
+            self.fields.pop('providers', None)  # Remove providers field for non-admin users
 
     def clean(self):
         cleaned_data = super().clean()
@@ -54,11 +66,6 @@ class SEOLogForm(forms.ModelForm):
         required=False,
         widget=MultipleFileInput(attrs={'class': 'form-control'}),
         help_text='Upload files related to off-page SEO work'
-    )
-    providers = forms.ModelMultipleChoiceField(
-        queryset=CustomUser.objects.filter(role='provider'),
-        required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-select'})
     )
 
     class Meta:
@@ -113,7 +120,6 @@ class SEOLogForm(forms.ModelForm):
                     file=file,
                     work_type='on_page',
                     file_name=file.name,
-                    file_type=file.content_type,
                     file_size=file.size
                 )
             # Handle file uploads for off-page work
@@ -123,7 +129,6 @@ class SEOLogForm(forms.ModelForm):
                     file=file,
                     work_type='off_page',
                     file_name=file.name,
-                    file_type=file.content_type,
                     file_size=file.size
                 )
             # Handle provider assignments

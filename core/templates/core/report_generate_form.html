@@ -1,0 +1,134 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Generate Report - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2>Generate Report - {{ project.name }}</h2>
+                    <button type="submit" form="reportForm" class="btn btn-primary">
+                        <i class="fas fa-file-pdf me-2"></i>Generate PDF Report
+                    </button>
+                </div>
+                <div class="card-body">
+                    <form id="reportForm" method="post" action="{% url 'report_generate' project.pk %}">
+                        {% csrf_token %}
+                        
+                        <!-- SEO Logs Selection -->
+                        <div class="mb-4">
+                            <h4>Select SEO Logs</h4>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" class="form-check-input" id="selectAllLogs">
+                                            </th>
+                                            <th>Date</th>
+                                            <th>Work Type</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log in seo_logs %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" name="selected_logs" value="{{ log.id }}" 
+                                                       class="form-check-input log-checkbox">
+                                            </td>
+                                            <td>{{ log.date }}</td>
+                                            <td>
+                                                {% if log.on_page_work %}On-Page{% endif %}
+                                                {% if log.off_page_work %}Off-Page{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if log.on_page_work %}
+                                                    {{ log.on_page_description|truncatechars:100 }}
+                                                {% endif %}
+                                                {% if log.off_page_work %}
+                                                    {{ log.off_page_description|truncatechars:100 }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Files Selection -->
+                        <div class="mb-4">
+                            <h4>Select Files to Include</h4>
+                            <div class="row">
+                                {% for file in files %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input type="checkbox" name="selected_files" value="{{ file.id }}"
+                                                       class="form-check-input file-checkbox">
+                                                <label class="form-check-label">
+                                                    {{ file.file_name }}
+                                                    <small class="text-muted d-block">
+                                                        {{ file.get_work_type_display }} - {{ file.file_size_formatted }}
+                                                    </small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Custom Sections -->
+                        <div class="mb-4">
+                            <h4>Custom Sections</h4>
+                            <div id="customSections">
+                                <div class="custom-section mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Section Title</label>
+                                                <input type="text" name="section_titles[]" class="form-control">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Content</label>
+                                                <textarea name="section_contents[]" class="form-control" rows="4"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary" id="addSection">
+                                <i class="fas fa-plus me-2"></i>Add Section
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Handle "Select All" for logs
+    $('#selectAllLogs').change(function() {
+        $('.log-checkbox').prop('checked', $(this).prop('checked'));
+    });
+
+    // Add custom section
+    $('#addSection').click(function() {
+        const newSection = $('.custom-section').first().clone();
+        newSection.find('input, textarea').val('');
+        $('#customSections').append(newSection);
+    });
+});
+</script>
+{% endblock %} 
