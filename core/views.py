@@ -11,6 +11,7 @@ from .forms import (
 from django.template.loader import render_to_string
 import weasyprint
 from django.utils import timezone
+from django.conf import settings
 
 def role_required(roles):
     def decorator(view_func):
@@ -44,13 +45,13 @@ def dashboard(request):
         })
     elif request.user.role == 'provider':
         context.update({
-            'assigned_projects': Project.objects.filter(seolog__created_by=request.user).distinct(),
+            'assigned_projects': Project.objects.filter(providers=request.user),
             'recent_logs': SEOLog.objects.filter(
                 created_by=request.user,
                 date__gte=thirty_days_ago
             ).order_by('-date')[:10],
             'reports_count': ReportSection.objects.filter(
-                project__seolog__created_by=request.user
+                project__providers=request.user
             ).values('project').distinct().count(),
         })
     else:  # client
@@ -281,27 +282,29 @@ def report_generate(request, pk):
     
     # Get project data
     seo_logs = SEOLog.objects.filter(project=project).order_by('-date')
-    report_sections = ReportSection.objects.filter(project=project).order_by('order')
     
     # Prepare context for PDF template
     context = {
         'project': project,
         'seo_logs': seo_logs,
-        'report_sections': report_sections,
         'generated_date': timezone.now(),
-        'generated_by': request.user,
+        'MEDIA_ROOT': settings.MEDIA_ROOT,
+        'base_url': request.build_absolute_uri('/')[:-1],
     }
     
     # Render HTML content
     html_string = render_to_string('core/report_pdf.html', context)
     
+    # Configure WeasyPrint with base URL for handling static/media files
+    base_url = request.build_absolute_uri('/')
+    
     # Generate PDF
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{project.name}_report_{timezone.now().strftime("%Y%m%d")}.pdf"'
     
-    weasyprint.HTML(string=html_string).write_pdf(response)
+    # Use the base_url to properly resolve media files
+    weasyprint.HTML(string=html_string, base_url=base_url).write_pdf(response)
     
-    messages.success(request, 'Report generated successfully.')
     return response
 
 @login_required

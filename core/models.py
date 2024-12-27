@@ -28,6 +28,7 @@ class Project(models.Model):
     end_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    providers = models.ManyToManyField(CustomUser, related_name='assigned_projects', blank=True, limit_choices_to={'role': 'provider'})
 
     def __str__(self):
         return f"{self.client.name} - {self.name}"

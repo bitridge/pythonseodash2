@@ -25,13 +25,10 @@ class ClientForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'client', 'description', 'start_date', 'end_date']
+        fields = ['name', 'client', 'description', 'providers']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'client': forms.Select(attrs={'class': 'form-select'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
-            'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'required': False}),
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'providers': forms.SelectMultiple(attrs={'class': 'form-control'})
         }
 
     def clean(self):
