@@ -16,7 +16,8 @@
                         
                         <div class="mb-3">
                             <label for="{{ form.name.id_for_label }}" class="form-label">Project Name</label>
-                            {{ form.name|add_class:"form-control" }}
+                            <input type="text" name="name" id="{{ form.name.id_for_label }}" 
+                                   class="form-control" value="{{ form.name.value|default:'' }}">
                             {% if form.name.errors %}
                                 <div class="invalid-feedback d-block">{{ form.name.errors }}</div>
                             {% endif %}
@@ -24,7 +25,13 @@
 
                         <div class="mb-3">
                             <label for="{{ form.client.id_for_label }}" class="form-label">Client</label>
-                            {{ form.client|add_class:"form-select" }}
+                            <select name="client" id="{{ form.client.id_for_label }}" class="form-select">
+                                {% for choice in form.client.field.choices %}
+                                    <option value="{{ choice.0 }}" {% if form.client.value|stringformat:"s" == choice.0|stringformat:"s" %}selected{% endif %}>
+                                        {{ choice.1 }}
+                                    </option>
+                                {% endfor %}
+                            </select>
                             {% if form.client.errors %}
                                 <div class="invalid-feedback d-block">{{ form.client.errors }}</div>
                             {% endif %}
@@ -32,7 +39,8 @@
 
                         <div class="mb-3">
                             <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
-                            {{ form.description|add_class:"form-control" }}
+                            <textarea name="description" id="{{ form.description.id_for_label }}" 
+                                      class="form-control" rows="4">{{ form.description.value|default:'' }}</textarea>
                             {% if form.description.errors %}
                                 <div class="invalid-feedback d-block">{{ form.description.errors }}</div>
                             {% endif %}
@@ -40,7 +48,13 @@
 
                         <div class="mb-3">
                             <label for="{{ form.providers.id_for_label }}" class="form-label">Assigned Providers</label>
-                            {{ form.providers|add_class:"form-select" }}
+                            <select name="providers" id="{{ form.providers.id_for_label }}" class="form-select" multiple>
+                                {% for choice in form.providers.field.choices %}
+                                    <option value="{{ choice.0 }}" {% if choice.0 in form.providers.value %}selected{% endif %}>
+                                        {{ choice.1 }}
+                                    </option>
+                                {% endfor %}
+                            </select>
                             {% if form.providers.errors %}
                                 <div class="invalid-feedback d-block">{{ form.providers.errors }}</div>
                             {% endif %}

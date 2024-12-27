@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
 from .models import CustomUser, Client, Project, SEOLog, ReportSection, Media, SEOLogFile
+from django.utils import timezone
 
 class CustomUserForm(UserChangeForm):
     class Meta:
@@ -81,18 +82,25 @@ class SEOLogForm(forms.ModelForm):
                 'rows': 4,
                 'placeholder': 'Describe the off-page SEO work performed...'
             }),
+            'providers': forms.SelectMultiple(attrs={'class': 'form-select'})
         }
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Set today's date as default
+        if not self.instance.pk:  # Only for new instances
+            self.initial['date'] = timezone.now().date()
+
+        # Filter projects based on user role
         if user.role == 'provider':
-            self.fields['project'].queryset = Project.objects.filter(
-                seolog__created_by=user
-            ).distinct()
+            self.fields['project'].queryset = Project.objects.filter(providers=user)
         elif user.role == 'admin':
             self.fields['project'].queryset = Project.objects.all()
         else:
             self.fields['project'].queryset = Project.objects.none()
+
+        # Filter providers to show only providers
+        self.fields['providers'].queryset = CustomUser.objects.filter(role='provider')
 
     def save(self, commit=True):
         instance = super().save(commit=False)
