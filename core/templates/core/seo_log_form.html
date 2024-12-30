@@ -1,149 +1,71 @@
 {% extends 'core/base.html' %}
 {% load static %}
 
-{% block title %}{{ title }} - SEO Work Log{% endblock %}
-
-{% block extra_css %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-transparent">
-                    <h1 class="h3 mb-0">{{ title }}</h1>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data" id="seoLogForm">
+                    <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         
-                        <!-- Project Selection -->
-                        <div class="mb-4">
-                            <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
-                            {{ form.project }}
-                            {% if form.project.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.project.errors|join:", " }}
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Date -->
-                        <div class="mb-4">
-                            <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
-                            {{ form.date }}
-                            {% if form.date.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.date.errors|join:", " }}
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- Provider Assignment -->
-                        {% if user.role == 'admin' %}
-                        <div class="mb-4">
-                            <label for="providers" class="form-label">Assign Providers</label>
-                            <select class="form-select" id="providers" name="providers" multiple>
-                                {% for provider in providers %}
-                                <option value="{{ provider.id }}" {% if provider in log.providers.all %}selected{% endif %}>
-                                    {{ provider.get_full_name|default:provider.username }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
                         </div>
                         {% endif %}
 
-                        <!-- Work Type Tabs -->
-                        <ul class="nav nav-tabs mb-4" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#onPageWork" type="button">
-                                    On-Page Work
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#offPageWork" type="button">
-                                    Off-Page Work
-                                </button>
-                            </li>
-                        </ul>
-
-                        <div class="tab-content mb-4">
-                            <!-- On-Page Work -->
-                            <div class="tab-pane fade show active" id="onPageWork">
-                                <div class="form-check mb-3">
-                                    {{ form.on_page_work }}
-                                    <label class="form-check-label" for="{{ form.on_page_work.id_for_label }}">
-                                        Include On-Page Work
-                                    </label>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.on_page_description.id_for_label }}" class="form-label">Description</label>
-                                    {{ form.on_page_description }}
-                                    {% if form.on_page_description.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.on_page_description.errors|join:", " }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- On-Page File Upload -->
-                                <div class="mb-3">
-                                    <label class="form-label">On-Page Work Files</label>
-                                    <div class="upload-area" id="onPageUploadArea">
-                                        <input type="file" id="onPageFiles" name="on_page_files" multiple 
-                                               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.jpg,.jpeg,.png,.gif" 
-                                               class="d-none">
-                                        <i class="fas fa-cloud-upload-alt"></i>
-                                        <p>Drag & drop files here or click to browse</p>
-                                    </div>
-                                    <div id="onPagePreview" class="file-preview-area"></div>
-                                </div>
+                        <div class="mb-3">
+                            <label class="form-label">Project</label>
+                            {{ form.project }}
+                            {% if form.project.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.project.errors }}
                             </div>
-
-                            <!-- Off-Page Work -->
-                            <div class="tab-pane fade" id="offPageWork">
-                                <div class="form-check mb-3">
-                                    {{ form.off_page_work }}
-                                    <label class="form-check-label" for="{{ form.off_page_work.id_for_label }}">
-                                        Include Off-Page Work
-                                    </label>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="{{ form.off_page_description.id_for_label }}" class="form-label">Description</label>
-                                    {{ form.off_page_description }}
-                                    {% if form.off_page_description.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.off_page_description.errors|join:", " }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Off-Page File Upload -->
-                                <div class="mb-3">
-                                    <label class="form-label">Off-Page Work Files</label>
-                                    <div class="upload-area" id="offPageUploadArea">
-                                        <input type="file" id="offPageFiles" name="off_page_files" multiple 
-                                               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.jpg,.jpeg,.png,.gif" 
-                                               class="d-none">
-                                        <i class="fas fa-cloud-upload-alt"></i>
-                                        <p>Drag & drop files here or click to browse</p>
-                                    </div>
-                                    <div id="offPagePreview" class="file-preview-area"></div>
-                                </div>
-                            </div>
+                            {% endif %}
                         </div>
 
-                        <!-- Submit Button -->
-                        <div class="d-flex justify-content-end">
-                            <a href="{% url 'seo_logs' %}" class="btn btn-light me-2">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Save SEO Log
-                            </button>
+                        <!-- Work Type -->
+                        <div class="mb-4">
+                            <label class="form-label">Work Type</label>
+                            {{ form.work_type }}
+                            {% if form.work_type.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.work_type.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-4">
+                            <label class="form-label">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="mb-4">
+                            <label class="form-label">Attachments</label>
+                            {{ form.files }}
+                            {% if form.files.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.files.errors }}
+                            </div>
+                            {% endif %}
+                            <div class="form-text">{{ form.files.help_text }}</div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{% url 'seo_logs' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Save Log</button>
                         </div>
                     </form>
                 </div>
@@ -154,38 +76,15 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="{% static 'js/upload.js' %}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Select2 for project and provider selection
-    $('#providers').select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Select providers...',
-        width: '100%'
-    });
-
-    // Initialize file upload for on-page work
-    const onPageUpload = new FileUpload(
-        document.getElementById('onPageUploadArea'),
-        document.getElementById('onPageFiles'),
-        document.getElementById('onPagePreview')
-    );
-
-    // Initialize file upload for off-page work
-    const offPageUpload = new FileUpload(
-        document.getElementById('offPageUploadArea'),
-        document.getElementById('offPageFiles'),
-        document.getElementById('offPagePreview')
-    );
-
-    // Make upload areas clickable
-    document.getElementById('onPageUploadArea').addEventListener('click', () => {
-        document.getElementById('onPageFiles').click();
-    });
-
-    document.getElementById('offPageUploadArea').addEventListener('click', () => {
-        document.getElementById('offPageFiles').click();
+$(document).ready(function() {
+    // Form validation
+    $('form').on('submit', function(e) {
+        if (!$('#{{ form.description.id_for_label }}').val()) {
+            e.preventDefault();
+            alert('Please provide a description of the work performed.');
+            return false;
+        }
     });
 });
 </script>

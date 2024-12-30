@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Report Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Report Format</label>
+                            <select name="report_format" class="form-select">
+                                <option value="pdf" {% if settings.report_format == 'pdf' %}selected{% endif %}>PDF</option>
+                                <option value="excel" {% if settings.report_format == 'excel' %}selected{% endif %}>Excel</option>
+                            </select>
+                            <div class="form-text">Choose the default format for generated reports.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Report Logo</label>
+                            <input type="file" name="report_logo" class="form-control" accept="image/*">
+                            <div class="form-text">Upload a logo to be displayed on reports. Recommended size: 200x50px.</div>
+                            {% if settings.report_logo %}
+                            <div class="mt-2">
+                                <img src="{{ settings.report_logo.url }}" alt="Current logo" style="max-height: 50px;">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" id="keepAsDraft" name="keep_as_draft" {% if settings.keep_as_draft %}checked{% endif %}>
+                                <label class="form-check-label" for="keepAsDraft">Keep as Draft</label>
+                            </div>
+                            <div class="form-text">When enabled, new reports will be saved as drafts by default.</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
     CustomUser, Customer, Project, SEOLog,
-    ReportSection, Media, UserSettings, SEOLogFile, Notification
+    ReportSection, Media, UserSettings, SEOLogFile, Notification,
+    Report, ReportAttachment, ReportSectionOrder, ReportVersion, AttachmentAccess
 )
 
 class CustomUserAdmin(UserAdmin):
@@ -24,16 +25,47 @@ class ProjectAdmin(admin.ModelAdmin):
     ordering = ('name',)
 
 class SEOLogAdmin(admin.ModelAdmin):
-    list_display = ('project', 'date', 'created_by', 'on_page_work', 'off_page_work')
-    list_filter = ('date', 'on_page_work', 'off_page_work', 'project__customer')
-    search_fields = ('project__name', 'project__customer__name', 'on_page_description', 'off_page_description')
+    list_display = ('project', 'date', 'created_by', 'work_type')
+    list_filter = ('date', 'work_type', 'project__customer')
+    search_fields = ('project__name', 'project__customer__name', 'description')
     ordering = ('-date',)
 
 class ReportSectionAdmin(admin.ModelAdmin):
-    list_display = ('project', 'title', 'order', 'created_at')
+    list_display = ('project', 'title', 'priority', 'created_at')
     list_filter = ('project__customer', 'created_at')
     search_fields = ('title', 'content', 'project__name', 'project__customer__name')
-    ordering = ('project', 'order')
+    ordering = ('project', 'priority')
+
+@admin.register(Report)
+class ReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'project', 'created_by', 'created_at', 'status', 'version']
+    list_filter = ['status', 'created_at', 'project']
+    search_fields = ['title', 'description', 'project__name']
+    date_hierarchy = 'created_at'
+
+class ReportVersionAdmin(admin.ModelAdmin):
+    list_display = ('report', 'version_number', 'created_by', 'created_at')
+    list_filter = ('created_at', 'report__project__customer')
+    search_fields = ('report__title', 'changes', 'report__project__name')
+    ordering = ('-created_at',)
+
+class ReportAttachmentAdmin(admin.ModelAdmin):
+    list_display = ('title', 'report_section', 'file_type', 'file_size', 'created_at')
+    list_filter = ('file_type', 'created_at', 'report_section__project__customer')
+    search_fields = ('title', 'description', 'report_section__title')
+    ordering = ('-created_at',)
+
+class AttachmentAccessAdmin(admin.ModelAdmin):
+    list_display = ('attachment', 'user', 'accessed_at', 'ip_address')
+    list_filter = ('accessed_at', 'attachment__report_section__project__customer')
+    search_fields = ('user__email', 'attachment__title', 'ip_address')
+    ordering = ('-accessed_at',)
+
+class ReportSectionOrderAdmin(admin.ModelAdmin):
+    list_display = ('report', 'section', 'order', 'page_break_before')
+    list_filter = ('page_break_before', 'report__project__customer')
+    search_fields = ('report__title', 'section__title')
+    ordering = ('report', 'order')
 
 class MediaAdmin(admin.ModelAdmin):
     list_display = ('seo_log', 'file_type', 'created_at')
@@ -48,14 +80,14 @@ class UserSettingsAdmin(admin.ModelAdmin):
 
 class SEOLogFileAdmin(admin.ModelAdmin):
     list_display = ('seo_log', 'file_name', 'file_type', 'work_type', 'uploaded_at')
-    list_filter = ('work_type', 'file_type', 'uploaded_at', 'seo_log__project__customer')
+    list_filter = ('file_type', 'work_type', 'uploaded_at', 'seo_log__project__customer')
     search_fields = ('file_name', 'seo_log__project__name', 'seo_log__project__customer__name')
     ordering = ('-uploaded_at',)
 
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'type', 'title', 'is_read', 'created_at')
-    list_filter = ('type', 'is_read', 'created_at')
-    search_fields = ('user__username', 'user__email', 'title', 'message')
+    list_display = ('user', 'title', 'is_read', 'created_at')
+    list_filter = ('is_read', 'created_at')
+    search_fields = ('user__email', 'title', 'message')
     ordering = ('-created_at',)
 
 admin.site.register(CustomUser, CustomUserAdmin)
@@ -63,6 +95,10 @@ admin.site.register(Customer, CustomerAdmin)
 admin.site.register(Project, ProjectAdmin)
 admin.site.register(SEOLog, SEOLogAdmin)
 admin.site.register(ReportSection, ReportSectionAdmin)
+admin.site.register(ReportVersion, ReportVersionAdmin)
+admin.site.register(ReportAttachment, ReportAttachmentAdmin)
+admin.site.register(AttachmentAccess, AttachmentAccessAdmin)
+admin.site.register(ReportSectionOrder, ReportSectionOrderAdmin)
 admin.site.register(Media, MediaAdmin)
 admin.site.register(UserSettings, UserSettingsAdmin)
 admin.site.register(SEOLogFile, SEOLogFileAdmin)

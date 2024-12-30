@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
-from .models import CustomUser, Customer, Project, SEOLog, ReportSection, Media, SEOLogFile
+from .models import CustomUser, Customer, Project, SEOLog, ReportSection, Media, SEOLogFile, Report, ReportAttachment, ReportSectionOrder
 from django.utils import timezone
 
 class CustomUserForm(forms.ModelForm):
@@ -57,100 +57,63 @@ class MultipleFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
 
 class SEOLogForm(forms.ModelForm):
-    on_page_files = forms.FileField(
+    files = forms.FileField(
         required=False,
         widget=MultipleFileInput(attrs={'class': 'form-control'}),
-        help_text='Upload files related to on-page SEO work'
-    )
-    off_page_files = forms.FileField(
-        required=False,
-        widget=MultipleFileInput(attrs={'class': 'form-control'}),
-        help_text='Upload files related to off-page SEO work'
+        help_text='Upload files related to SEO work'
     )
 
     class Meta:
         model = SEOLog
-        fields = [
-            'project', 'date', 'on_page_work', 'on_page_description',
-            'off_page_work', 'off_page_description', 'providers'
-        ]
+        fields = ['project', 'work_type', 'description']
         widgets = {
             'project': forms.Select(attrs={'class': 'form-select'}),
-            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'on_page_work': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'off_page_work': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'on_page_description': forms.Textarea(attrs={
+            'work_type': forms.Select(attrs={'class': 'form-select'}),
+            'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 4,
-                'placeholder': 'Describe the on-page SEO work performed...'
-            }),
-            'off_page_description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Describe the off-page SEO work performed...'
-            }),
-            'providers': forms.SelectMultiple(attrs={'class': 'form-select'})
+                'placeholder': 'Describe the SEO work performed...'
+            })
         }
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Set today's date as default
-        if not self.instance.pk:  # Only for new instances
-            self.initial['date'] = timezone.now().date()
-
-        # Filter projects based on user role and active status
+        # Filter projects based on user role
         if user.role == 'provider':
-            self.fields['project'].queryset = Project.objects.filter(
-                providers=user,
-                is_active=True,
-                customer__is_active=True
-            )
-        elif user.role == 'admin':
-            self.fields['project'].queryset = Project.objects.all()
-        else:
-            self.fields['project'].queryset = Project.objects.none()
-
-        # Filter providers to show only providers
-        self.fields['providers'].queryset = CustomUser.objects.filter(role='provider')
+            self.fields['project'].queryset = Project.objects.filter(providers=user)
 
     def save(self, commit=True):
         instance = super().save(commit=False)
+        if not instance.pk:  # Only for new instances
+            instance.date = timezone.now().date()
         if commit:
             instance.save()
-            # Handle file uploads for on-page work
-            for file in self.files.getlist('on_page_files'):
-                SEOLogFile.objects.create(
-                    seo_log=instance,
-                    file=file,
-                    work_type='on_page',
-                    file_name=file.name,
-                    file_size=file.size
-                )
-            # Handle file uploads for off-page work
-            for file in self.files.getlist('off_page_files'):
-                SEOLogFile.objects.create(
-                    seo_log=instance,
-                    file=file,
-                    work_type='off_page',
-                    file_name=file.name,
-                    file_size=file.size
-                )
-            # Handle provider assignments
-            if 'providers' in self.cleaned_data:
-                instance.providers.set(self.cleaned_data['providers'])
+            # Handle file uploads
+            if self.cleaned_data.get('files'):
+                for file in self.cleaned_data['files']:
+                    SEOLogFile.objects.create(
+                        seo_log=instance,
+                        file=file,
+                        work_type=instance.work_type
+                    )
         return instance
 
 class ReportSectionForm(forms.ModelForm):
     class Meta:
         model = ReportSection
-        fields = ['project', 'title', 'content', 'image', 'order']
+        fields = ['title', 'content', 'priority', 'files', 'seo_logs']
         widgets = {
-            'project': forms.Select(attrs={'class': 'form-select'}),
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 6}),
-            'image': forms.FileInput(attrs={'class': 'form-control'}),
-            'order': forms.NumberInput(attrs={'class': 'form-control'}),
+            'content': forms.Textarea(attrs={'rows': 6, 'class': 'summernote'}),
+            'priority': forms.NumberInput(attrs={'min': 1, 'class': 'form-control'}),
+            'files': forms.SelectMultiple(attrs={'class': 'select2'}),
+            'seo_logs': forms.SelectMultiple(attrs={'class': 'select2'}),
         }
+
+    def clean_priority(self):
+        priority = self.cleaned_data.get('priority')
+        if priority < 1:
+            raise forms.ValidationError("Priority must be 1 or greater")
+        return priority
 
 class MediaForm(forms.ModelForm):
     class Meta:
@@ -177,3 +140,79 @@ class MediaForm(forms.ModelForm):
             elif extension in ['xls', 'xlsx', 'csv']:
                 return 'spreadsheet'
         return file_type 
+
+class ReportForm(forms.ModelForm):
+    class Meta:
+        model = Report
+        fields = ['title', 'description', 'status', 'is_template']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        if user and user.role != 'admin':
+            # Providers can only create draft reports
+            self.fields['status'].choices = [('draft', 'Draft')]
+            self.fields['is_template'].widget = forms.HiddenInput()
+        
+        if self.instance.pk:
+            # Can't change status back to draft once it's been reviewed/published
+            if self.instance.status in ['approved', 'published', 'archived']:
+                self.fields['status'].widget.attrs['disabled'] = True
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.data.get('section_title'):
+            raise forms.ValidationError("Section title is required")
+        if not self.data.get('content'):
+            raise forms.ValidationError("Section content is required")
+        
+        # Status validation
+        status = cleaned_data.get('status')
+        if self.instance.pk and self.instance.status in ['approved', 'published', 'archived']:
+            if status != self.instance.status:
+                raise forms.ValidationError("Cannot change status of approved/published reports")
+        
+        return cleaned_data
+
+class ReportAttachmentForm(forms.ModelForm):
+    class Meta:
+        model = ReportAttachment
+        fields = ['title', 'description', 'file']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file:
+            # Check file size (max 50MB)
+            if file.size > 52428800:
+                raise forms.ValidationError("File size must be under 50MB")
+            
+            # Check file type
+            allowed_types = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif']
+            ext = file.name.split('.')[-1].lower()
+            if ext not in allowed_types:
+                raise forms.ValidationError(f"File type not supported. Allowed types: {', '.join(allowed_types)}")
+        return file
+
+class ReportSectionOrderForm(forms.ModelForm):
+    class Meta:
+        model = ReportSectionOrder
+        fields = ['order', 'page_break_before']
+        widgets = {
+            'order': forms.NumberInput(attrs={'min': 1}),
+        }
+
+    def clean_order(self):
+        order = self.cleaned_data.get('order')
+        if order < 1:
+            raise forms.ValidationError("Order must be 1 or greater")
+        return order 

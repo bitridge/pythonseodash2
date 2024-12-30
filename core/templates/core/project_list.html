@@ -108,8 +108,8 @@
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         {% endif %}
-                                        <a href="{% url 'report_generate' project.pk %}" class="btn btn-sm btn-outline-success">
-                                            <i class="fas fa-file-pdf"></i>
+                                        <a href="{% url 'report_create' project.pk %}" class="btn btn-sm btn-outline-success" title="Generate Report">
+                                            <i class="fas fa-file-alt"></i> Generate Report
                                         </a>
                                     </div>
                                 </td>

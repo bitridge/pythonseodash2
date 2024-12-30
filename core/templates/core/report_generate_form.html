@@ -19,7 +19,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <form id="reportForm" method="post" action="{% url 'report_generate' project.pk %}" enctype="multipart/form-data">
+                    <form id="reportForm" method="post" action="{% url 'report_create' project.pk %}" enctype="multipart/form-data">
                         {% csrf_token %}
                         
                         <!-- SEO Logs Selection -->

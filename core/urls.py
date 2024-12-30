@@ -33,11 +33,16 @@ urlpatterns = [
     path('seo-logs/<int:pk>/delete/', views.seo_log_delete, name='seo_log_delete'),
     
     # Report URLs
-    path('reports/', views.report_list, name='reports'),
+    path('reports/', views.report_list, name='report_list'),
+    path('reports/create/<int:project_pk>/', views.report_create, name='report_create'),
     path('reports/<int:pk>/', views.report_detail, name='report_detail'),
-    path('reports/<int:pk>/generate/', views.report_generate, name='report_generate'),
+    path('reports/<int:pk>/edit/', views.report_edit, name='report_edit'),
+    path('reports/<int:report_pk>/sections/add/', views.report_section_add, name='report_section_add'),
+    path('reports/<int:pk>/download/', views.report_download, name='report_download'),
+    path('attachments/<int:pk>/download/', views.attachment_download, name='attachment_download'),
+    path('reports/<int:pk>/review/', views.report_review, name='report_review'),
+    path('reports/<int:pk>/publish/', views.report_publish, name='report_publish'),
     path('reports/<int:pk>/delete/', views.report_delete, name='report_delete'),
-    path('reports/<int:pk>/section/add/', views.report_section_add, name='report_section_add'),
     
     # Settings URLs
     path('settings/', views.settings_view, name='settings'),

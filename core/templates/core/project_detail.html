@@ -60,7 +60,9 @@
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         <a href="{% url 'seo_log_add' %}" class="btn btn-success">Log Work</a>
-                        <a href="{% url 'report_generate' project.pk %}" class="btn btn-info">Generate Report</a>
+                        <a href="{% url 'report_create' project.pk %}" class="btn btn-primary">
+                            <i class="fas fa-file-alt"></i> Generate Report
+                        </a>
                         <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
                     </div>
                 </div>

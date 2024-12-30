@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.urls import reverse
+from django.utils import timezone
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
@@ -36,20 +38,42 @@ class Project(models.Model):
         return f"{self.customer.name} - {self.name}"
 
 class SEOLog(models.Model):
+    WORK_TYPE_CHOICES = [
+        ('on_page', 'On-Page SEO'),
+        ('off_page', 'Off-Page SEO'),
+        ('technical', 'Technical SEO'),
+        ('content', 'Content Optimization'),
+        ('analytics', 'Analytics & Tracking'),
+        ('other', 'Other'),
+    ]
+
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     date = models.DateField()
     created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='created_logs')
-    on_page_work = models.BooleanField(default=False)
-    off_page_work = models.BooleanField(default=False)
-    on_page_description = models.TextField(blank=True)
-    off_page_description = models.TextField(blank=True)
+    work_type = models.CharField(max_length=20, choices=WORK_TYPE_CHOICES, default='other')
+    description = models.TextField(default='', blank=True)
     providers = models.ManyToManyField(CustomUser, related_name='assigned_logs', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
-        return f"{self.project.name} - {self.date}"
+        return f"{self.project.name} - {self.get_work_type_display()} - {self.date}"
 
     class Meta:
         ordering = ['-date']
+        verbose_name = 'SEO Log'
+        verbose_name_plural = 'SEO Logs'
+
+    def save(self, *args, **kwargs):
+        # Convert old data format to new format if needed
+        if not self.description and hasattr(self, 'on_page_description'):
+            if self.on_page_work and self.on_page_description:
+                self.work_type = 'on_page'
+                self.description = self.on_page_description
+            elif self.off_page_work and self.off_page_description:
+                self.work_type = 'off_page'
+                self.description = self.off_page_description
+        super().save(*args, **kwargs)
 
 class SEOLogFile(models.Model):
     WORK_TYPE_CHOICES = [
@@ -127,21 +151,142 @@ class SEOLogFile(models.Model):
             return 'fas fa-file'
 
 class ReportSection(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    title = models.CharField(max_length=255)
-    content = models.TextField(blank=True)  # Custom content
-    seo_logs = models.ManyToManyField(SEOLog, blank=True, related_name='report_sections')
-    files = models.ManyToManyField(SEOLogFile, blank=True, related_name='report_sections')
-    image = models.ImageField(upload_to='report_images/', null=True, blank=True)
-    order = models.PositiveIntegerField(default=0)
+    project = models.ForeignKey('Project', on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    priority = models.PositiveIntegerField(default=1, help_text="Priority determines page order (1 starts on first page)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    files = models.ManyToManyField('SEOLogFile', blank=True)
+    seo_logs = models.ManyToManyField('SEOLog', blank=True)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['priority', 'created_at']
 
     def __str__(self):
         return f"{self.project.name} - {self.title}"
+
+class ReportAttachment(models.Model):
+    report_section = models.ForeignKey(ReportSection, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='report_attachments/%Y/%m/')
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    file_type = models.CharField(max_length=50)
+    file_size = models.PositiveIntegerField()  # Size in bytes
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.file_type and self.file:
+            self.file_type = self.file.name.split('.')[-1].lower()
+        if not self.file_size and self.file:
+            self.file_size = self.file.size
+        super().save(*args, **kwargs)
+
+class Report(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('in_review', 'In Review'),
+        ('approved', 'Approved'),
+        ('published', 'Published'),
+        ('archived', 'Archived')
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    sections = models.ManyToManyField(ReportSection, through='ReportSectionOrder')
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    version = models.PositiveIntegerField(default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    is_template = models.BooleanField(default=False)
+    publish_date = models.DateField(null=True, blank=True)
+    last_reviewed_by = models.ForeignKey(
+        CustomUser, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='reviewed_reports'
+    )
+    last_reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.title} - {self.project.name}"
+
+    class Meta:
+        ordering = ['-created_at']
+        
+    def get_absolute_url(self):
+        return reverse('report_detail', kwargs={'pk': self.pk})
+
+    def can_edit(self, user):
+        return (
+            user.role == 'admin' or 
+            (user.role == 'provider' and self.status == 'draft' and user == self.created_by)
+        )
+
+    def can_review(self, user):
+        return user.role == 'admin' and self.status == 'in_review'
+
+    def can_publish(self, user):
+        return user.role == 'admin' and self.status == 'approved'
+
+    def mark_as_reviewed(self, user, notes=''):
+        self.last_reviewed_by = user
+        self.last_reviewed_at = timezone.now()
+        self.review_notes = notes
+        self.status = 'approved'
+        self.save()
+
+    def publish(self):
+        if self.status == 'approved':
+            self.status = 'published'
+            self.publish_date = timezone.now().date()
+            self.save()
+
+class ReportSectionOrder(models.Model):
+    report = models.ForeignKey(Report, on_delete=models.CASCADE)
+    section = models.ForeignKey(ReportSection, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()
+    page_break_before = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ['report', 'order']
+
+class ReportVersion(models.Model):
+    report = models.ForeignKey(Report, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.PositiveIntegerField()
+    created_by = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    changes = models.TextField()
+    pdf_file = models.FileField(upload_to='report_versions/%Y/%m/', null=True, blank=True)
+
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = ['report', 'version_number']
+
+    def __str__(self):
+        return f"{self.report.title} - v{self.version_number}"
+
+class AttachmentAccess(models.Model):
+    attachment = models.ForeignKey(ReportAttachment, on_delete=models.CASCADE)
+    user = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    accessed_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-accessed_at']
+
+    def __str__(self):
+        return f"{self.attachment.title} - {self.user.email} - {self.accessed_at}"
 
 class Media(models.Model):
     seo_log = models.ForeignKey(SEOLog, on_delete=models.CASCADE)
@@ -179,6 +324,7 @@ class UserSettings(models.Model):
         ('excel', 'Excel'),
     ])
     report_logo = models.ImageField(upload_to='report_logos/', null=True, blank=True)
+    keep_as_draft = models.BooleanField(default=True, help_text="Keep new reports as draft by default")
     
     # Integration Settings
     ga_tracking_id = models.CharField(max_length=50, blank=True)

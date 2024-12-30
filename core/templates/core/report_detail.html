@@ -1,82 +1,263 @@
 {% extends 'core/base.html' %}
-
-{% block title %}{{ title }} - SEO Work Log{% endblock %}
+{% load static %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3">{{ project.name }} Report</h1>
         <div>
-            <a href="{% url 'report_generate' project.pk %}" class="btn btn-success">
-                <i class="fas fa-file-pdf me-2"></i>Download PDF Report
+            <h1 class="h3">{{ report.title }}</h1>
+            <p class="text-muted mb-0">
+                Project: {{ report.project.name }} | 
+                Version: v{{ report.version }} | 
+                Status: <span class="badge bg-{{ report.status|yesno:'success,warning' }}">{{ report.get_status_display }}</span>
+            </p>
+        </div>
+        <div class="btn-group">
+            {% if can_edit %}
+            <a href="{% url 'report_edit' pk=report.pk %}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Edit Report
             </a>
-            {% if user.role == 'admin' and report_sections %}
-            <a href="{% url 'report_delete' project.pk %}" class="btn btn-danger ms-2" 
-               onclick="return confirm('Are you sure you want to delete this report?')">
-                <i class="fas fa-trash me-2"></i>Delete Report
+            {% endif %}
+            
+            {% if can_review and report.status == 'in_review' %}
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#reviewModal">
+                <i class="fas fa-check"></i> Review Report
+            </button>
+            {% endif %}
+            
+            {% if can_publish %}
+            <form method="post" action="{% url 'report_publish' report.pk %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-info">
+                    <i class="fas fa-globe"></i> Publish Report
+                </button>
+            </form>
+            {% endif %}
+            
+            <a href="{% url 'report_download' pk=report.pk %}" class="btn btn-success">
+                <i class="fas fa-download"></i> Download PDF
             </a>
+            
+            {% if is_admin %}
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                <i class="fas fa-trash"></i> Delete Report
+            </button>
             {% endif %}
         </div>
     </div>
 
     <div class="row">
-        <!-- Project Information -->
-        <div class="col-md-4 mb-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0">Project Information</h5>
+        <!-- Report Content -->
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Report Content</h5>
                 </div>
                 <div class="card-body">
-                    <dl class="row mb-0">
-                        <dt class="col-sm-4">Customer</dt>
-                        <dd class="col-sm-8">
-                            <a href="{% url 'customer_detail' project.customer.pk %}">{{ project.customer.name }}</a>
-                        </dd>
+                    {% if report.description %}
+                    <div class="report-description mb-4">
+                        <h6>Description</h6>
+                        {{ report.description|linebreaks }}
+                    </div>
+                    {% endif %}
+                    
+                    {% for section in sections %}
+                    <div class="report-section mb-4">
+                        <h4>{{ section.title }}</h4>
+                        <p class="text-muted small">Priority: {{ section.priority }}</p>
+                        <div class="content">{{ section.content|linebreaks }}</div>
                         
-                        <dt class="col-sm-4">Start Date</dt>
-                        <dd class="col-sm-8">{{ project.start_date }}</dd>
-                        
-                        {% if project.end_date %}
-                        <dt class="col-sm-4">End Date</dt>
-                        <dd class="col-sm-8">{{ project.end_date }}</dd>
+                        {% if section.attachments.exists %}
+                        <div class="attachments mt-3">
+                            <h6>Attachments</h6>
+                            <div class="list-group">
+                                {% for attachment in section.attachments.all %}
+                                <a href="{% url 'attachment_download' pk=attachment.pk %}" class="list-group-item list-group-item-action">
+                                    <i class="fas fa-paperclip me-2"></i>
+                                    {{ attachment.title }}
+                                    <small class="text-muted ms-2">({{ attachment.file_size|filesizeformat }})</small>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
                         {% endif %}
-                        
-                        <dt class="col-sm-4">Status</dt>
-                        <dd class="col-sm-8">
-                            {% if not project.end_date %}
-                                <span class="badge bg-success">Active</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Completed</span>
-                            {% endif %}
-                        </dd>
-                    </dl>
+
+                        {% if section.seo_logs.exists %}
+                        <div class="seo-logs mt-3">
+                            <h6>SEO Logs</h6>
+                            <div class="list-group">
+                                {% for log in section.seo_logs.all %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-1">{{ log.get_work_type_display }}</h6>
+                                            <small class="text-muted">{{ log.date|date:"M d, Y" }}</small>
+                                        </div>
+                                    </div>
+                                    <p class="mb-1">{{ log.description }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-muted">No content sections found.</p>
+                    {% endfor %}
                 </div>
             </div>
         </div>
 
-        <!-- Report Sections -->
-        <div class="col-md-8 mb-4">
-            {% if report_sections %}
-                {% for section in report_sections %}
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-white">
-                        <h5 class="mb-0">{{ section.title }}</h5>
-                    </div>
-                    <div class="card-body">
-                        {% if section.image %}
-                            <img src="{{ section.image.url }}" alt="{{ section.title }}" class="img-fluid mb-3">
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Status Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Report Status</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-{{ report.status|yesno:'success,warning' }}">
+                                {{ report.get_status_display }}
+                            </span>
+                        </dd>
+
+                        {% if report.last_reviewed_by %}
+                        <dt class="col-sm-4">Reviewed By</dt>
+                        <dd class="col-sm-8">
+                            {{ report.last_reviewed_by.get_full_name }}
+                            <br>
+                            <small class="text-muted">{{ report.last_reviewed_at|date:"M d, Y H:i" }}</small>
+                        </dd>
                         {% endif %}
-                        {{ section.content|linebreaks }}
+
+                        {% if report.publish_date %}
+                        <dt class="col-sm-4">Published</dt>
+                        <dd class="col-sm-8">{{ report.publish_date|date:"M d, Y" }}</dd>
+                        {% endif %}
+
+                        {% if report.review_notes %}
+                        <dt class="col-sm-12 mt-3">Review Notes</dt>
+                        <dd class="col-sm-12">
+                            <div class="alert alert-info">
+                                {{ report.review_notes|linebreaks }}
+                            </div>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Version History -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Version History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for version in versions %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-1">Version {{ version.version_number }}</h6>
+                                <small>{{ version.created_at|date:"M d, Y" }}</small>
+                            </div>
+                            <p class="mb-1">{{ version.changes|default:"No change notes" }}</p>
+                            <small class="text-muted">By {{ version.created_by.get_full_name|default:version.created_by.email }}</small>
+                            {% if version.pdf_file %}
+                            <div class="mt-2">
+                                <a href="{{ version.pdf_file.url }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-download"></i> Download PDF
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="text-center text-muted">No version history available.</p>
+                        {% endfor %}
                     </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body">
-                        <p class="text-muted mb-0">No report sections available yet.</p>
+            </div>
+
+            <!-- Project Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Project Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Customer</dt>
+                        <dd class="col-sm-8">{{ report.project.customer.name }}</dd>
+
+                        <dt class="col-sm-4">Start Date</dt>
+                        <dd class="col-sm-8">{{ report.project.start_date|date:"M d, Y" }}</dd>
+
+                        <dt class="col-sm-4">Created By</dt>
+                        <dd class="col-sm-8">{{ report.created_by.get_full_name|default:report.created_by.email }}</dd>
+
+                        <dt class="col-sm-4">Created</dt>
+                        <dd class="col-sm-8">{{ report.created_at|date:"M d, Y H:i" }}</dd>
+
+                        <dt class="col-sm-4">Updated</dt>
+                        <dd class="col-sm-8">{{ report.updated_at|date:"M d, Y H:i" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this report? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'report_delete' report.pk %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Review Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'report_review' report.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Review Notes</label>
+                        <textarea name="review_notes" class="form-control" rows="4" placeholder="Enter your review notes..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Decision</label>
+                        <select name="decision" class="form-select">
+                            <option value="approve">Approve Report</option>
+                            <option value="reject">Send Back for Revision</option>
+                        </select>
                     </div>
                 </div>
-            {% endif %}
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Submit Review</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

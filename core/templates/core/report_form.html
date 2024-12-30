@@ -1,0 +1,175 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'report_create' project.pk %}" enctype="multipart/form-data" id="reportForm">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        {% if messages %}
+                        <div class="messages">
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="id_title" class="form-label">Report Title</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.title.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.description.errors }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Work Logs Selection -->
+                        <div class="mb-4">
+                            <h4>Select Work Logs</h4>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" class="form-check-input" id="selectAllLogs">
+                                            </th>
+                                            <th>Date</th>
+                                            <th>Work Type</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log in project.seolog_set.all|dictsortreversed:"date" %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" name="selected_logs" value="{{ log.id }}" 
+                                                       class="form-check-input log-checkbox">
+                                            </td>
+                                            <td>{{ log.date }}</td>
+                                            <td>
+                                                {% if log.on_page_work %}On-Page{% endif %}
+                                                {% if log.off_page_work %}Off-Page{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if log.on_page_work %}
+                                                    {{ log.on_page_description|truncatechars:100 }}
+                                                {% endif %}
+                                                {% if log.off_page_work %}
+                                                    {{ log.off_page_description|truncatechars:100 }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Report Section -->
+                        <div class="mb-4">
+                            <h4>Report Section</h4>
+                            <div class="mb-3">
+                                <label class="form-label">Section Title</label>
+                                <input type="text" name="section_title" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Priority (1 starts on first page, each number starts on a new page)</label>
+                                <input type="number" name="priority" class="form-control" min="1" value="1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Content</label>
+                                <textarea name="content" class="form-control summernote" rows="10" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Attachments</label>
+                                <input type="file" name="attachments" class="form-control" multiple>
+                            </div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{% url 'project_detail' project.pk %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Report</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Initialize Summernote
+    $('.summernote').summernote({
+        height: 300,
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'underline', 'clear']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link']],
+            ['view', ['fullscreen', 'codeview', 'help']]
+        ]
+    });
+
+    // Handle "Select All" for logs
+    $('#selectAllLogs').change(function() {
+        $('.log-checkbox').prop('checked', $(this).prop('checked'));
+    });
+
+    // Priority field validation
+    $('input[name="priority"]').on('input', function() {
+        var value = $(this).val();
+        if (value < 1) {
+            $(this).val(1);
+        }
+    });
+
+    // Form submission handling
+    $('#reportForm').on('submit', function(e) {
+        var content = $('.summernote').summernote('code');
+        if (!content) {
+            e.preventDefault();
+            alert('Please enter content for the report section.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %} 

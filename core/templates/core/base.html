@@ -71,8 +71,8 @@
                     {% endif %}
                     
                     <li class="nav-item">
-                        <a class="nav-link {% if 'reports' in request.path %}active{% endif %}" 
-                           href="{% url 'reports' %}">
+                        <a class="nav-link {% if 'report_list' in request.path %}active{% endif %}" 
+                           href="{% url 'report_list' %}">
                             <i class="fas fa-file-alt me-2"></i>Reports
                         </a>
                     </li>

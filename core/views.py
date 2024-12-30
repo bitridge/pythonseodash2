@@ -3,10 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse
 from functools import wraps
-from .models import Customer, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser, SEOLogFile, Notification
+from .models import Customer, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser, SEOLogFile, Notification, Report, ReportVersion, ReportSectionOrder, ReportAttachment, AttachmentAccess
 from .forms import (
     CustomUserForm, CustomerForm, ProjectForm, SEOLogForm,
-    ReportSectionForm, MediaForm
+    ReportSectionForm, MediaForm, ReportForm
 )
 from django.template.loader import render_to_string, get_template
 from django.utils import timezone
@@ -241,15 +241,29 @@ def seo_log_list(request):
 @role_required(['admin', 'provider'])
 def seo_log_add(request):
     if request.method == 'POST':
-        form = SEOLogForm(request.user, request.POST)
+        form = SEOLogForm(request.user, request.POST, request.FILES)
         if form.is_valid():
             log = form.save(commit=False)
             log.created_by = request.user
             log.save()
+            
+            # Handle file uploads
+            if request.FILES.getlist('files'):
+                for file in request.FILES.getlist('files'):
+                    SEOLogFile.objects.create(
+                        seo_log=log,
+                        file=file,
+                        work_type='general'
+                    )
+            
             messages.success(request, 'SEO log added successfully.')
             return redirect('seo_log_detail', pk=log.pk)
     else:
-        form = SEOLogForm(request.user)
+        initial = {}
+        project_id = request.GET.get('project')
+        if project_id:
+            initial['project'] = project_id
+        form = SEOLogForm(request.user, initial=initial)
     
     return render(request, 'core/seo_log_form.html', {
         'title': 'Add SEO Log',
@@ -258,91 +272,239 @@ def seo_log_add(request):
 
 @login_required
 def report_list(request):
-    if request.user.role == 'customer':
-        projects = Project.objects.filter(customer__email=request.user.email)
+    if request.user.role == 'admin':
+        reports = Report.objects.all()
     elif request.user.role == 'provider':
-        projects = Project.objects.filter(seolog__created_by=request.user).distinct()
-    else:  # admin
-        projects = Project.objects.all()
+        reports = Report.objects.filter(project__providers=request.user)
+    else:  # customer
+        reports = Report.objects.filter(project__customer__email=request.user.email)
+    
+    reports = reports.order_by('-created_at')
     
     return render(request, 'core/report_list.html', {
         'title': 'Reports',
-        'projects': projects,
+        'reports': reports,
+    })
+
+@login_required
+@role_required(['admin', 'provider'])
+def report_create(request, project_pk):
+    project = get_object_or_404(Project, pk=project_pk)
+    
+    # Check if user has permission to create report for this project
+    if request.user.role == 'provider' and request.user not in project.providers.all():
+        return HttpResponseForbidden("You don't have permission to create reports for this project.")
+    
+    if request.method == 'POST':
+        form = ReportForm(request.POST)
+        if form.is_valid():
+            try:
+                # Create the report
+                report = form.save(commit=False)
+                report.project = project
+                report.created_by = request.user
+                report.save()
+                
+                # Create the report section
+                section = ReportSection.objects.create(
+                    project=project,
+                    title=request.POST.get('section_title'),
+                    content=request.POST.get('content'),
+                    priority=int(request.POST.get('priority', 1))
+                )
+                
+                # Add selected work logs
+                selected_logs = request.POST.getlist('selected_logs')
+                if selected_logs:
+                    section.seo_logs.add(*selected_logs)
+                
+                # Handle attachments
+                if request.FILES.getlist('attachments'):
+                    for file in request.FILES.getlist('attachments'):
+                        attachment = ReportAttachment.objects.create(
+                            report_section=section,
+                            file=file,
+                            title=file.name,
+                            file_type=file.content_type,
+                            file_size=file.size
+                        )
+                
+                # Add section to report with proper order
+                ReportSectionOrder.objects.create(
+                    report=report,
+                    section=section,
+                    order=1,
+                    page_break_before=True
+                )
+                
+                # Create initial version
+                ReportVersion.objects.create(
+                    report=report,
+                    version_number=1,
+                    created_by=request.user,
+                    changes='Initial version'
+                )
+                
+                messages.success(request, 'Report created successfully.')
+                return redirect('report_detail', pk=report.pk)
+            except Exception as e:
+                messages.error(request, f'Error creating report: {str(e)}')
+                return redirect('report_create', project_pk=project_pk)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = ReportForm(initial={'project': project})
+    
+    return render(request, 'core/report_form.html', {
+        'title': 'Create Report',
+        'form': form,
+        'project': project,
     })
 
 @login_required
 def report_detail(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if request.user.role == 'customer' and project.customer.email != request.user.email:
-        return HttpResponseForbidden("You don't have permission to access this report.")
+    report = get_object_or_404(Report, pk=pk)
     
-    report_sections = ReportSection.objects.filter(project=project).order_by('order')
-    return render(request, 'core/report_detail.html', {
-        'title': f'Report: {project.name}',
-        'project': project,
-        'report_sections': report_sections,
+    # Check permissions
+    if request.user.role == 'customer' and report.project.customer.email != request.user.email:
+        return HttpResponseForbidden()
+    elif request.user.role == 'provider' and request.user not in report.project.providers.all():
+        return HttpResponseForbidden()
+    
+    sections = report.sections.all().order_by('reportsectionorder__order')
+    versions = report.versions.all()
+    
+    context = {
+        'title': report.title,
+        'report': report,
+        'sections': sections,
+        'versions': versions,
+        'can_edit': report.can_edit(request.user),
+        'can_review': report.can_review(request.user),
+        'can_publish': report.can_publish(request.user),
+        'is_admin': request.user.role == 'admin'
+    }
+    
+    return render(request, 'core/report_detail.html', context)
+
+@login_required
+@role_required(['admin', 'provider'])
+def report_edit(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    
+    if request.method == 'POST':
+        form = ReportForm(request.POST, instance=report)
+        if form.is_valid():
+            report = form.save()
+            
+            # Create new version
+            version = ReportVersion.objects.create(
+                report=report,
+                version_number=report.version + 1,
+                created_by=request.user,
+                changes=request.POST.get('changes', '')
+            )
+            
+            report.version = version.version_number
+            report.save()
+            
+            messages.success(request, 'Report updated successfully.')
+            return redirect('report_detail', pk=report.pk)
+    else:
+        form = ReportForm(instance=report)
+    
+    sections = report.sections.all().order_by('reportsectionorder__order')
+    
+    return render(request, 'core/report_edit.html', {
+        'title': f'Edit Report: {report.title}',
+        'form': form,
+        'report': report,
+        'sections': sections,
     })
 
 @login_required
-def report_generate(request, pk):
-    project = get_object_or_404(Project, pk=pk)
+@role_required(['admin', 'provider'])
+def report_section_add(request, report_pk):
+    report = get_object_or_404(Report, pk=report_pk)
     
     if request.method == 'POST':
-        selected_logs = request.POST.getlist('selected_logs')
-        selected_files = request.POST.getlist('selected_files')
-        section_titles = request.POST.getlist('section_titles[]')
-        section_contents = request.POST.getlist('section_contents[]')
-        section_images = request.FILES.getlist('section_images[]')
-        
-        # Get selected logs and files
-        seo_logs = SEOLog.objects.filter(id__in=selected_logs).order_by('date')
-        files = SEOLogFile.objects.filter(id__in=selected_files)
-        
-        # Prepare custom sections
-        custom_sections = []
-        for i, (title, content) in enumerate(zip(section_titles, section_contents)):
-            if title and content:  # Only add if both title and content are provided
-                section_data = {
-                    'title': title,
-                    'content': content,
-                }
-                # Add image if available
-                if i < len(section_images) and section_images[i]:
-                    section_data['image'] = section_images[i]
-                custom_sections.append(section_data)
-        
-        # Generate context
-        context = {
-            'project': project,
-            'seo_logs': seo_logs,
-            'files': files,
-            'custom_sections': custom_sections,
-            'generated_date': timezone.now()
-        }
-        
-        # If preview requested, return HTML content
-        if request.POST.get('preview') == 'true':
-            return render(request, 'core/report_preview.html', context)
-        
-        # Generate PDF report
-        template = get_template('core/report_pdf.html')
-        html = template.render(context)
-        
-        # Create PDF
-        pdf = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
-        
-        # Create response
-        response = HttpResponse(pdf, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{project.name}_report_{timezone.now().strftime("%Y%m%d")}.pdf"'
-        return response
+        form = ReportSectionForm(request.POST)
+        if form.is_valid():
+            section = form.save(commit=False)
+            section.project = report.project
+            section.save()
+            form.save_m2m()
+            
+            # Add to report with next order number
+            next_order = ReportSectionOrder.objects.filter(report=report).count() + 1
+            ReportSectionOrder.objects.create(
+                report=report,
+                section=section,
+                order=next_order
+            )
+            
+            messages.success(request, 'Section added successfully.')
+            return redirect('report_edit', pk=report.pk)
+    else:
+        form = ReportSectionForm()
     
-    # GET request - show form
+    return render(request, 'core/report_section_form.html', {
+        'title': 'Add Section',
+        'form': form,
+        'report': report,
+    })
+
+@login_required
+def report_download(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    
+    # Check permissions
+    if request.user.role == 'customer' and report.project.customer.email != request.user.email:
+        return HttpResponseForbidden()
+    elif request.user.role == 'provider' and request.user not in report.project.providers.all():
+        return HttpResponseForbidden()
+    
+    # Generate PDF
+    template = get_template('core/report_pdf.html')
+    sections = report.sections.all().order_by('reportsectionorder__order')
+    
     context = {
-        'project': project,
-        'seo_logs': SEOLog.objects.filter(project=project).order_by('-date'),
-        'files': SEOLogFile.objects.filter(seo_log__project=project)
+        'report': report,
+        'sections': sections,
+        'base_url': request.build_absolute_uri('/')[:-1],
     }
-    return render(request, 'core/report_generate_form.html', context)
+    
+    html = template.render(context)
+    pdf = HTML(string=html, base_url=request.build_absolute_uri()).write_pdf()
+    
+    # Create response
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{report.title}.pdf"'
+    return response
+
+@login_required
+def attachment_download(request, pk):
+    attachment = get_object_or_404(ReportAttachment, pk=pk)
+    
+    # Check permissions
+    report = attachment.report_section.project.report_set.first()
+    if request.user.role == 'customer' and report.project.customer.email != request.user.email:
+        return HttpResponseForbidden()
+    elif request.user.role == 'provider' and request.user not in report.project.providers.all():
+        return HttpResponseForbidden()
+    
+    # Log access
+    AttachmentAccess.objects.create(
+        attachment=attachment,
+        user=request.user,
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
+    
+    # Stream file
+    response = HttpResponse(attachment.file, content_type='application/octet-stream')
+    response['Content-Disposition'] = f'attachment; filename="{attachment.file.name}"'
+    return response
 
 @login_required
 @role_required(['admin', 'provider'])
@@ -494,6 +656,7 @@ def settings_reports(request):
         if request.FILES.get('report_logo'):
             settings.report_logo = request.FILES['report_logo']
         settings.report_format = request.POST.get('report_format', 'pdf')
+        settings.keep_as_draft = request.POST.get('keep_as_draft') == 'on'
         settings.save()
         messages.success(request, 'Report settings updated successfully.')
         return redirect('settings_reports')
@@ -558,35 +721,6 @@ def report_delete(request, pk):
     return redirect('report_detail', pk=project_id)
 
 @login_required
-def report_section_add(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        content = request.POST.get('content')
-        image = request.FILES.get('image')
-        seo_logs = request.POST.getlist('seo_logs')
-        files = request.POST.getlist('files')
-        
-        section = ReportSection.objects.create(
-            project=project,
-            title=title,
-            content=content,
-            image=image,
-            order=ReportSection.objects.filter(project=project).count() + 1
-        )
-        
-        if seo_logs:
-            section.seo_logs.set(seo_logs)
-        if files:
-            section.files.set(files)
-        
-        messages.success(request, 'Report section added successfully.')
-        return redirect('report_detail', pk=pk)
-    
-    return redirect('report_detail', pk=pk)
-
-@login_required
 @role_required(['admin'])
 def customer_toggle_status(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
@@ -610,3 +744,47 @@ def project_toggle_status(request, pk):
     status = 'activated' if project.is_active else 'deactivated'
     messages.success(request, f'Project {status} successfully.')
     return redirect('project_detail', pk=pk)
+
+@login_required
+@role_required(['admin'])
+def report_review(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    
+    if request.method == 'POST' and report.can_review(request.user):
+        decision = request.POST.get('decision')
+        notes = request.POST.get('review_notes', '')
+        
+        if decision == 'approve':
+            report.mark_as_reviewed(request.user, notes)
+            messages.success(request, 'Report has been approved.')
+        else:
+            report.status = 'draft'
+            report.review_notes = notes
+            report.save()
+            messages.info(request, 'Report has been sent back for revision.')
+            
+    return redirect('report_detail', pk=pk)
+
+@login_required
+@role_required(['admin'])
+def report_publish(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    
+    if request.method == 'POST' and report.can_publish(request.user):
+        report.publish()
+        messages.success(request, 'Report has been published successfully.')
+    
+    return redirect('report_detail', pk=pk)
+
+@login_required
+@role_required(['admin'])
+def report_delete(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    project_id = report.project.id
+    
+    if request.method == 'POST':
+        report.delete()
+        messages.success(request, 'Report deleted successfully.')
+        return redirect('project_detail', pk=project_id)
+    
+    return redirect('report_detail', pk=pk)
