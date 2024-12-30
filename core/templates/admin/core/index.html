@@ -1,124 +1,16 @@
-{% extends "admin/index.html" %}
-{% load i18n static %}
+{% extends "admin/base_site.html" %}
 
 {% block content %}
-<div class="dashboard-header">
-    <h1>SEO Work Log Dashboard</h1>
-    <p class="welcome-message">Welcome, {{ request.user.get_full_name|default:request.user.username }}!</p>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h3>{% trans 'Customers' %}</h3>
+                <p>{{ customer_count }} total customers</p>
+                <a href="{% url 'admin:core_customer_changelist' %}" class="stat-link">View all customers</a>
+            </div>
+        </div>
+    </div>
+    <!-- Add other admin dashboard widgets here -->
 </div>
-
-<div class="dashboard-stats">
-    <div class="stat-box">
-        <h3>{% trans 'Clients' %}</h3>
-        <p class="count">{{ app_list.0.models.0.count }}</p>
-        <a href="{% url 'admin:core_client_changelist' %}" class="stat-link">View all clients</a>
-    </div>
-    <div class="stat-box">
-        <h3>{% trans 'Projects' %}</h3>
-        <p class="count">{{ app_list.0.models.1.count }}</p>
-        <a href="{% url 'admin:core_project_changelist' %}" class="stat-link">View all projects</a>
-    </div>
-    <div class="stat-box">
-        <h3>{% trans 'SEO Logs' %}</h3>
-        <p class="count">{{ app_list.0.models.2.count }}</p>
-        <a href="{% url 'admin:core_seolog_changelist' %}" class="stat-link">View all logs</a>
-    </div>
-    <div class="stat-box">
-        <h3>{% trans 'Users' %}</h3>
-        <p class="count">{{ app_list.0.models.3.count }}</p>
-        <a href="{% url 'admin:core_customuser_changelist' %}" class="stat-link">View all users</a>
-    </div>
-</div>
-
-{{ block.super }}
-
-<style>
-.dashboard-header {
-    background: #f8f9fa;
-    padding: 20px;
-    margin-bottom: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.dashboard-header h1 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 24px;
-}
-
-.welcome-message {
-    margin: 10px 0 0;
-    color: #666;
-}
-
-.dashboard-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-.stat-box {
-    background: white;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    text-align: center;
-    transition: transform 0.2s;
-}
-
-.stat-box:hover {
-    transform: translateY(-5px);
-}
-
-.stat-box h3 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 18px;
-}
-
-.stat-box .count {
-    font-size: 36px;
-    font-weight: bold;
-    color: #3498db;
-    margin: 10px 0;
-}
-
-.stat-link {
-    display: inline-block;
-    padding: 5px 10px;
-    background: #3498db;
-    color: white;
-    text-decoration: none;
-    border-radius: 3px;
-    font-size: 14px;
-}
-
-.stat-link:hover {
-    background: #2980b9;
-    color: white;
-}
-
-[data-theme="dark"] .dashboard-header {
-    background: #2c3e50;
-}
-
-[data-theme="dark"] .dashboard-header h1,
-[data-theme="dark"] .welcome-message {
-    color: #ecf0f1;
-}
-
-[data-theme="dark"] .stat-box {
-    background: #34495e;
-}
-
-[data-theme="dark"] .stat-box h3 {
-    color: #ecf0f1;
-}
-
-[data-theme="dark"] .stat-box .count {
-    color: #3498db;
-}
-</style>
 {% endblock %} 

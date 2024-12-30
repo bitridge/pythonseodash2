@@ -3,9 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse
 from functools import wraps
-from .models import Client, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser, SEOLogFile
+from .models import Customer, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser, SEOLogFile, Notification
 from .forms import (
-    CustomUserForm, ClientForm, ProjectForm, SEOLogForm,
+    CustomUserForm, CustomerForm, ProjectForm, SEOLogForm,
     ReportSectionForm, MediaForm
 )
 from django.template.loader import render_to_string, get_template
@@ -29,60 +29,66 @@ def dashboard(request):
     context = {
         'title': 'Dashboard',
     }
-    
-    # Get recent logs (last 30 days)
-    thirty_days_ago = timezone.now().date() - timezone.timedelta(days=30)
-    
+
     if request.user.role == 'admin':
         context.update({
-            'total_clients': Client.objects.count(),
-            'total_projects': Project.objects.filter(end_date__isnull=True).count(),
-            'recent_logs': SEOLog.objects.filter(date__gte=thirty_days_ago).order_by('-date')[:10],
-            'reports_count': ReportSection.objects.values('project').distinct().count(),
-            'active_users': CustomUser.objects.filter(last_login__date=timezone.now().date()).count(),
-            'storage_used': get_storage_used(),
-            'last_backup': get_last_backup_date(),
+            'total_projects': Project.objects.count(),
+            'total_customers': Customer.objects.count(),
+            'total_logs': SEOLog.objects.count(),
+            'active_projects': Project.objects.filter(
+                is_active=True,
+                customer__is_active=True
+            ).count(),
+            'recent_logs': SEOLog.objects.filter(
+                project__is_active=True,
+                project__customer__is_active=True
+            ).order_by('-date')[:5],
+            'recent_projects': Project.objects.filter(
+                is_active=True,
+                customer__is_active=True
+            ).order_by('-created_at')[:5],
         })
+        template = 'core/dashboard.html'
     elif request.user.role == 'provider':
         context.update({
             'assigned_projects': Project.objects.filter(
                 providers=request.user,
                 is_active=True,
-                client__is_active=True
+                customer__is_active=True
             ),
             'recent_logs': SEOLog.objects.filter(
                 created_by=request.user,
-                date__gte=thirty_days_ago,
                 project__is_active=True,
-                project__client__is_active=True
-            ).order_by('-date')[:10],
-            'reports_count': ReportSection.objects.filter(
-                project__providers=request.user,
-                project__is_active=True,
-                project__client__is_active=True
-            ).values('project').distinct().count(),
+                project__customer__is_active=True
+            ).order_by('-date')[:5],
         })
+        template = 'core/dashboard.html'
     else:  # customer
+        active_projects = Project.objects.filter(
+            customer__email=request.user.email,
+            is_active=True,
+            customer__is_active=True
+        )
         context.update({
-            'customer_projects': Project.objects.filter(
-                client__email=request.user.email,
-                is_active=True,
-                client__is_active=True
-            ),
-            'recent_logs': SEOLog.objects.filter(
-                project__client__email=request.user.email,
-                date__gte=thirty_days_ago,
-                project__is_active=True,
-                project__client__is_active=True
-            ).order_by('-date')[:10],
-            'reports_count': ReportSection.objects.filter(
-                project__client__email=request.user.email,
-                project__is_active=True,
-                project__client__is_active=True
+            'active_projects_count': active_projects.count(),
+            'recent_reports_count': ReportSection.objects.filter(
+                project__in=active_projects
             ).values('project').distinct().count(),
+            'seo_logs_count': SEOLog.objects.filter(
+                project__in=active_projects
+            ).count(),
+            'service_history': SEOLog.objects.filter(
+                project__in=active_projects
+            ).order_by('-date')[:10],
+            'notifications': Notification.objects.filter(
+                user=request.user,
+                is_read=False
+            ).order_by('-created_at')[:5],
+            'messages': [],  # Placeholder for message system
         })
-    
-    return render(request, 'core/dashboard.html', context)
+        template = 'core/customer_dashboard.html'
+
+    return render(request, template, context)
 
 def get_storage_used():
     """Calculate total storage used by media files"""
@@ -123,27 +129,27 @@ def profile_view(request):
 
 @login_required
 @role_required(['admin', 'provider'])
-def client_list(request):
-    clients = Client.objects.all().order_by('name')
-    return render(request, 'core/client_list.html', {
-        'title': 'Clients',
-        'clients': clients,
+def customer_list(request):
+    customers = Customer.objects.all().order_by('name')
+    return render(request, 'core/customer_list.html', {
+        'title': 'Customers',
+        'customers': customers,
     })
 
 @login_required
 @role_required(['admin', 'provider'])
-def client_add(request):
+def customer_add(request):
     if request.method == 'POST':
-        form = ClientForm(request.POST, request.FILES)
+        form = CustomerForm(request.POST, request.FILES)
         if form.is_valid():
-            client = form.save()
-            messages.success(request, 'Client added successfully.')
-            return redirect('client_detail', pk=client.pk)
+            customer = form.save()
+            messages.success(request, 'Customer added successfully.')
+            return redirect('customer_detail', pk=customer.pk)
     else:
-        form = ClientForm()
+        form = CustomerForm()
     
-    return render(request, 'core/client_form.html', {
-        'title': 'Add Client',
+    return render(request, 'core/customer_form.html', {
+        'title': 'Add Customer',
         'form': form,
     })
 
@@ -155,13 +161,13 @@ def project_list(request):
         projects = Project.objects.filter(
             providers=request.user,
             is_active=True,
-            client__is_active=True
+            customer__is_active=True
         )
     else:  # customer
         projects = Project.objects.filter(
-            client__email=request.user.email,
+            customer__email=request.user.email,
             is_active=True,
-            client__is_active=True
+            customer__is_active=True
         )
     
     return render(request, 'core/project_list.html', {
@@ -253,7 +259,7 @@ def seo_log_add(request):
 @login_required
 def report_list(request):
     if request.user.role == 'customer':
-        projects = Project.objects.filter(client__email=request.user.email)
+        projects = Project.objects.filter(customer__email=request.user.email)
     elif request.user.role == 'provider':
         projects = Project.objects.filter(seolog__created_by=request.user).distinct()
     else:  # admin
@@ -267,7 +273,7 @@ def report_list(request):
 @login_required
 def report_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    if request.user.role == 'customer' and project.client.email != request.user.email:
+    if request.user.role == 'customer' and project.customer.email != request.user.email:
         return HttpResponseForbidden("You don't have permission to access this report.")
     
     report_sections = ReportSection.objects.filter(project=project).order_by('order')
@@ -340,38 +346,38 @@ def report_generate(request, pk):
 
 @login_required
 @role_required(['admin', 'provider'])
-def client_detail(request, pk):
-    client = get_object_or_404(Client, pk=pk)
-    projects = Project.objects.filter(client=client)
-    return render(request, 'core/client_detail.html', {
-        'title': f'Client: {client.name}',
-        'client': client,
+def customer_detail(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    projects = Project.objects.filter(customer=customer)
+    return render(request, 'core/customer_detail.html', {
+        'title': f'Customer: {customer.name}',
+        'customer': customer,
         'projects': projects,
     })
 
 @login_required
 @role_required(['admin', 'provider'])
-def client_edit(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+def customer_edit(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
     if request.method == 'POST':
-        form = ClientForm(request.POST, request.FILES, instance=client)
+        form = CustomerForm(request.POST, request.FILES, instance=customer)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Client updated successfully.')
-            return redirect('client_detail', pk=pk)
+            messages.success(request, 'Customer updated successfully.')
+            return redirect('customer_detail', pk=pk)
     else:
-        form = ClientForm(instance=client)
+        form = CustomerForm(instance=customer)
     
-    return render(request, 'core/client_form.html', {
-        'title': f'Edit Client: {client.name}',
+    return render(request, 'core/customer_form.html', {
+        'title': f'Edit Customer: {customer.name}',
         'form': form,
-        'client': client,
+        'customer': customer,
     })
 
 @login_required
 def project_detail(request, pk):
     project = get_object_or_404(Project, pk=pk)
-    if request.user.role == 'customer' and project.client.email != request.user.email:
+    if request.user.role == 'customer' and project.customer.email != request.user.email:
         return HttpResponseForbidden("You don't have permission to access this project.")
     
     seo_logs = SEOLog.objects.filter(project=project).order_by('-date')
@@ -582,18 +588,18 @@ def report_section_add(request, pk):
 
 @login_required
 @role_required(['admin'])
-def client_toggle_status(request, pk):
-    client = get_object_or_404(Client, pk=pk)
-    client.is_active = not client.is_active
-    client.save()
+def customer_toggle_status(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    customer.is_active = not customer.is_active
+    customer.save()
     
-    # When deactivating a client, deactivate all their projects
-    if not client.is_active:
-        client.project_set.all().update(is_active=False)
+    # When deactivating a customer, deactivate all their projects
+    if not customer.is_active:
+        customer.project_set.all().update(is_active=False)
     
-    status = 'activated' if client.is_active else 'deactivated'
-    messages.success(request, f'Client {status} successfully.')
-    return redirect('client_detail', pk=pk)
+    status = 'activated' if customer.is_active else 'deactivated'
+    messages.success(request, f'Customer {status} successfully.')
+    return redirect('customer_detail', pk=pk)
 
 @login_required
 @role_required(['admin'])

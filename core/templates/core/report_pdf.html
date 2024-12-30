@@ -22,11 +22,9 @@
             border-bottom: 2px solid #333;
             padding-bottom: 1em;
         }
-        .client-logo {
-            display: block;
-            max-width: 200px;
+        .customer-logo {
             max-height: 100px;
-            margin: 0 auto 1em auto;
+            margin-bottom: 20px;
         }
         .report-title {
             text-align: center;
@@ -85,8 +83,8 @@
 </head>
 <body>
     <div class="header">
-        {% if project.client.logo %}
-        <img src="{{ project.client.logo.url }}" alt="{{ project.client.name }} Logo" class="client-logo">
+        {% if project.customer.logo %}
+        <img src="{{ project.customer.logo.url }}" alt="{{ project.customer.name }} Logo" class="customer-logo">
         {% endif %}
         <div class="report-title">
             <h1>SEO Progress Report</h1>

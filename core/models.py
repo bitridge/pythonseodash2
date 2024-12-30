@@ -9,7 +9,7 @@ class CustomUser(AbstractUser):
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
 
-class Client(models.Model):
+class Customer(models.Model):
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     website = models.URLField()
@@ -22,7 +22,7 @@ class Client(models.Model):
         return self.name
 
 class Project(models.Model):
-    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     description = models.TextField()
     start_date = models.DateField()
@@ -33,7 +33,7 @@ class Project(models.Model):
     providers = models.ManyToManyField(CustomUser, related_name='assigned_projects', blank=True, limit_choices_to={'role': 'provider'})
 
     def __str__(self):
-        return f"{self.client.name} - {self.name}"
+        return f"{self.customer.name} - {self.name}"
 
 class SEOLog(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -262,9 +262,9 @@ class Notification(models.Model):
     @classmethod
     def notify_seo_log_added(cls, seo_log):
         """Notify relevant users about new SEO log."""
-        # Notify client
+        # Notify customer
         cls.create_notification(
-            user=seo_log.project.client.user,
+            user=seo_log.project.customer.user,
             type='seo_log_added',
             title='New SEO Log Added',
             message=f'New SEO log added for project: {seo_log.project.name}',
@@ -282,9 +282,9 @@ class Notification(models.Model):
 
     @classmethod
     def notify_report_generated(cls, report, project):
-        """Notify client about new report."""
+        """Notify customer about new report."""
         cls.create_notification(
-            user=project.client.user,
+            user=project.customer.user,
             type='report_generated',
             title='New Report Available',
             message=f'A new SEO report is available for project: {project.name}',
@@ -294,9 +294,9 @@ class Notification(models.Model):
     @classmethod
     def notify_project_completed(cls, project):
         """Notify all relevant users about project completion."""
-        # Notify client
+        # Notify customer
         cls.create_notification(
-            user=project.client.user,
+            user=project.customer.user,
             type='project_completed',
             title='Project Completed',
             message=f'Project completed: {project.name}',
@@ -315,9 +315,9 @@ class Notification(models.Model):
     @classmethod
     def notify_file_uploaded(cls, file, seo_log):
         """Notify relevant users about file upload."""
-        # Notify client
+        # Notify customer
         cls.create_notification(
-            user=seo_log.project.client.user,
+            user=seo_log.project.customer.user,
             type='file_uploaded',
             title='New File Uploaded',
             message=f'New file uploaded for project: {seo_log.project.name}',

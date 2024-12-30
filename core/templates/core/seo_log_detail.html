@@ -29,9 +29,9 @@
                             <a href="{% url 'project_detail' log.project.pk %}">{{ log.project.name }}</a>
                         </dd>
                         
-                        <dt class="col-sm-4">Client</dt>
+                        <dt class="col-sm-4">Customer</dt>
                         <dd class="col-sm-8">
-                            <a href="{% url 'client_detail' log.project.client.pk %}">{{ log.project.client.name }}</a>
+                            <a href="{% url 'customer_detail' log.project.customer.pk %}">{{ log.project.customer.name }}</a>
                         </dd>
                         
                         <dt class="col-sm-4">Date</dt>

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserChangeForm
-from .models import CustomUser, Client, Project, SEOLog, ReportSection, Media, SEOLogFile
+from .models import CustomUser, Customer, Project, SEOLog, ReportSection, Media, SEOLogFile
 from django.utils import timezone
 
 class CustomUserForm(forms.ModelForm):
@@ -14,9 +14,9 @@ class CustomUserForm(forms.ModelForm):
         if user and user.role != 'admin':
             self.fields.pop('role', None)  # Remove role field for non-admin users
 
-class ClientForm(forms.ModelForm):
+class CustomerForm(forms.ModelForm):
     class Meta:
-        model = Client
+        model = Customer
         fields = ['name', 'email', 'website', 'logo']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -28,10 +28,10 @@ class ClientForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'client', 'description', 'providers', 'start_date', 'end_date']
+        fields = ['name', 'customer', 'description', 'providers', 'start_date', 'end_date']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'client': forms.Select(attrs={'class': 'form-select'}),
+            'customer': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'providers': forms.SelectMultiple(attrs={'class': 'form-select'}),
             'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -103,7 +103,7 @@ class SEOLogForm(forms.ModelForm):
             self.fields['project'].queryset = Project.objects.filter(
                 providers=user,
                 is_active=True,
-                client__is_active=True
+                customer__is_active=True
             )
         elif user.role == 'admin':
             self.fields['project'].queryset = Project.objects.all()

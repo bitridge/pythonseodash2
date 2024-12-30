@@ -11,12 +11,12 @@ urlpatterns = [
     # Dashboard URLs
     path('', views.dashboard, name='dashboard'),
     
-    # Client URLs
-    path('clients/', views.client_list, name='clients'),
-    path('clients/add/', views.client_add, name='client_add'),
-    path('clients/<int:pk>/', views.client_detail, name='client_detail'),
-    path('clients/<int:pk>/edit/', views.client_edit, name='client_edit'),
-    path('clients/<int:pk>/toggle-status/', views.client_toggle_status, name='client_toggle_status'),
+    # Customer URLs
+    path('customers/', views.customer_list, name='customers'),
+    path('customers/add/', views.customer_add, name='customer_add'),
+    path('customers/<int:pk>/', views.customer_detail, name='customer_detail'),
+    path('customers/<int:pk>/edit/', views.customer_edit, name='customer_edit'),
+    path('customers/<int:pk>/toggle-status/', views.customer_toggle_status, name='customer_toggle_status'),
     
     # Project URLs
     path('projects/', views.project_list, name='projects'),

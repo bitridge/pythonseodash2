@@ -45,11 +45,11 @@
                     </li>
                     {% endif %}
                     
-                    {% if user.role != 'client' %}
+                    {% if user.role != 'customer' %}
                     <li class="nav-item">
-                        <a class="nav-link {% if 'clients' in request.path %}active{% endif %}" 
-                           href="{% url 'clients' %}">
-                            <i class="fas fa-users me-2"></i>Clients
+                        <a class="nav-link {% if 'customers' in request.path %}active{% endif %}"
+                            href="{% url 'customers' %}">
+                            <i class="fas fa-users me-2"></i>Customers
                         </a>
                     </li>
                     {% endif %}
@@ -61,7 +61,7 @@
                         </a>
                     </li>
                     
-                    {% if user.role != 'client' %}
+                    {% if user.role != 'customer' %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'seo-logs' in request.path %}active{% endif %}" 
                            href="{% url 'seo_logs' %}">
