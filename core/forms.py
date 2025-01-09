@@ -1,7 +1,29 @@
 from django import forms
-from django.contrib.auth.forms import UserChangeForm
-from .models import CustomUser, Customer, Project, SEOLog, ReportSection, Media, SEOLogFile, Report, ReportAttachment, ReportSectionOrder
+from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+from .models import (
+    CustomUser, Customer, Project, SEOLog, ReportSection, 
+    Media, SEOLogFile, Report, ReportAttachment, ReportSectionOrder
+)
+
+# Custom File Upload Widgets and Fields
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+class MultipleFileField(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("widget", MultipleFileInput())
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_file_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            result = [single_file_clean(d, initial) for d in data]
+        else:
+            result = single_file_clean(data, initial)
+        return result
 
 class CustomUserForm(forms.ModelForm):
     class Meta:
@@ -28,14 +50,15 @@ class CustomerForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'customer', 'description', 'providers', 'start_date', 'end_date']
+        fields = ['name', 'customer', 'description', 'providers', 'start_date', 'end_date', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'customer': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'providers': forms.SelectMultiple(attrs={'class': 'form-select'}),
             'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
+            'end_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'is_active': forms.Select(attrs={'class': 'form-select'}, choices=[(True, 'Active'), (False, 'Inactive')])
         }
 
     def __init__(self, *args, **kwargs):
@@ -43,6 +66,10 @@ class ProjectForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if user and user.role != 'admin':
             self.fields.pop('providers', None)  # Remove providers field for non-admin users
+        
+        # Set default value for is_active to True for new projects
+        if not self.instance.pk:  # If this is a new project
+            self.initial['is_active'] = True
 
     def clean(self):
         cleaned_data = super().clean()
@@ -53,50 +80,250 @@ class ProjectForm(forms.ModelForm):
             raise forms.ValidationError("End date cannot be earlier than start date.")
         return cleaned_data
 
-class MultipleFileInput(forms.ClearableFileInput):
-    allow_multiple_selected = True
-
 class SEOLogForm(forms.ModelForm):
-    files = forms.FileField(
+    files = MultipleFileField(
         required=False,
-        widget=MultipleFileInput(attrs={'class': 'form-control'}),
-        help_text='Upload files related to SEO work'
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control file-input',
+            'accept': '.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx',
+            'data-browse-label': 'Browse Files',
+            'style': 'cursor: pointer;'
+        })
     )
 
     class Meta:
         model = SEOLog
-        fields = ['project', 'work_type', 'description']
+        fields = ['project', 'date', 'work_type', 'description']
         widgets = {
             'project': forms.Select(attrs={'class': 'form-select'}),
+            'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'work_type': forms.Select(attrs={'class': 'form-select'}),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Describe the SEO work performed...'
-            })
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
 
-    def __init__(self, user, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        # Filter projects based on user role
-        if user.role == 'provider':
-            self.fields['project'].queryset = Project.objects.filter(providers=user)
+        
+        if user:
+            # Filter projects based on user role
+            if user.role == 'provider':
+                self.fields['project'].queryset = Project.objects.filter(providers=user)
+            elif user.role == 'customer':
+                self.fields['project'].queryset = Project.objects.filter(customer=user)
+            else:
+                # Admin can see all projects
+                self.fields['project'].queryset = Project.objects.all()
+
+            # Set default date to today if not set
+            if not self.instance.pk:
+                self.initial['date'] = timezone.now().date()
+
+    def clean(self):
+        cleaned_data = super().clean()
+        files = self.files.getlist('files')
+        
+        # Validate file sizes and types
+        max_size = 50 * 1024 * 1024  # 50MB
+        allowed_types = [
+            'image/jpeg', 'image/png', 'image/gif',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ]
+        
+        for file in files:
+            if file.size > max_size:
+                self.add_error('files', f'File {file.name} is too large. Maximum size is 50MB.')
+            if file.content_type not in allowed_types:
+                self.add_error('files', f'File {file.name} has an unsupported format.')
+        
+        return cleaned_data
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        if not instance.pk:  # Only for new instances
-            instance.date = timezone.now().date()
         if commit:
             instance.save()
+            self.save_m2m()
+            
             # Handle file uploads
-            if self.cleaned_data.get('files'):
-                for file in self.cleaned_data['files']:
+            files = self.files.getlist('files')
+            if files:
+                for file in files:
+                    # Get file extension
+                    ext = file.name.split('.')[-1].lower()
+                    # Determine file type based on extension
+                    if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                        file_type = 'image'
+                    elif ext in ['pdf', 'doc', 'docx']:
+                        file_type = 'document'
+                    elif ext in ['xls', 'xlsx']:
+                        file_type = 'spreadsheet'
+                    else:
+                        file_type = 'other'
+                    
                     SEOLogFile.objects.create(
                         seo_log=instance,
                         file=file,
-                        work_type=instance.work_type
+                        work_type=instance.work_type,
+                        file_name=file.name,
+                        file_type=file_type,
+                        file_size=file.size
                     )
         return instance
+
+class ReportForm(forms.ModelForm):
+    title = forms.CharField(
+        label='Report Title',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter report title'
+        })
+    )
+    
+    description = forms.CharField(
+        label='Description',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Enter report description'
+        })
+    )
+    
+    selected_logs = forms.ModelMultipleChoiceField(
+        label='Select Work Logs',
+        queryset=SEOLog.objects.none(),
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'log-checkbox'
+        }),
+        required=False
+    )
+    
+    section_title = forms.CharField(
+        label='Section Title',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter section title'
+        })
+    )
+    
+    priority = forms.IntegerField(
+        label='Priority',
+        min_value=1,
+        initial=1,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter priority number'
+        })
+    )
+    
+    content = forms.CharField(
+        label='Content',
+        widget=forms.Textarea(attrs={
+            'class': 'form-control summernote',
+            'placeholder': 'Enter section content'
+        })
+    )
+    
+    attachments = MultipleFileField(
+        label='Attachments',
+        required=False,
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': '.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx'
+        })
+    )
+
+    class Meta:
+        model = Report
+        fields = ['title', 'description']
+
+    def __init__(self, *args, project=None, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if project:
+            # Filter logs based on user role and project
+            if user and hasattr(user, 'role'):
+                if user.role == 'provider':
+                    self.fields['selected_logs'].queryset = SEOLog.objects.filter(
+                        project=project,
+                        created_by=user
+                    )
+                elif user.role == 'customer':
+                    self.fields['selected_logs'].queryset = SEOLog.objects.filter(
+                        project=project,
+                        project__customer=user
+                    )
+                else:  # admin or superuser
+                    self.fields['selected_logs'].queryset = SEOLog.objects.filter(
+                        project=project
+                    )
+            else:
+                self.fields['selected_logs'].queryset = SEOLog.objects.filter(project=project)
+
+    def clean_content(self):
+        content = self.cleaned_data.get('content')
+        if not content or content == '<p><br></p>':
+            raise ValidationError('Please enter content for the report section.')
+        return content
+
+    def clean_priority(self):
+        priority = self.cleaned_data.get('priority')
+        if priority and priority < 1:
+            raise ValidationError('Priority must be a positive number.')
+        return priority
+
+    def clean_attachments(self):
+        attachments = self.files.getlist('attachments')
+        max_size = 50 * 1024 * 1024  # 50MB
+        allowed_types = [
+            'image/jpeg', 'image/png', 'image/gif',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ]
+        
+        for attachment in attachments:
+            if attachment.size > max_size:
+                raise ValidationError(f'File {attachment.name} is too large. Maximum size is 50MB.')
+            if attachment.content_type not in allowed_types:
+                raise ValidationError(f'File {attachment.name} has an unsupported format.')
+        
+        return attachments
+
+    def save(self, commit=True):
+        report = super().save(commit=False)
+        if commit:
+            report.save()
+            
+            # Create report section
+            section = ReportSection.objects.create(
+                report=report,
+                title=self.cleaned_data['section_title'],
+                content=self.cleaned_data['content'],
+                priority=self.cleaned_data['priority']
+            )
+            
+            # Link selected logs to the report
+            selected_logs = self.cleaned_data.get('selected_logs')
+            if selected_logs:
+                report.logs.set(selected_logs)
+            
+            # Handle file attachments
+            attachments = self.files.getlist('attachments')
+            for attachment in attachments:
+                section.attachments.create(
+                    file=attachment,
+                    name=attachment.name,
+                    content_type=attachment.content_type,
+                    size=attachment.size
+                )
+        
+        return report
 
 class ReportSectionForm(forms.ModelForm):
     class Meta:
@@ -139,47 +366,7 @@ class MediaForm(forms.ModelForm):
                 return 'document'
             elif extension in ['xls', 'xlsx', 'csv']:
                 return 'spreadsheet'
-        return file_type 
-
-class ReportForm(forms.ModelForm):
-    class Meta:
-        model = Report
-        fields = ['title', 'description', 'status', 'is_template']
-        widgets = {
-            'title': forms.TextInput(attrs={'class': 'form-control'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'status': forms.Select(attrs={'class': 'form-select'}),
-            'is_template': forms.CheckboxInput(attrs={'class': 'form-check-input'})
-        }
-
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-        
-        if user and user.role != 'admin':
-            # Providers can only create draft reports
-            self.fields['status'].choices = [('draft', 'Draft')]
-            self.fields['is_template'].widget = forms.HiddenInput()
-        
-        if self.instance.pk:
-            # Can't change status back to draft once it's been reviewed/published
-            if self.instance.status in ['approved', 'published', 'archived']:
-                self.fields['status'].widget.attrs['disabled'] = True
-
-    def clean(self):
-        cleaned_data = super().clean()
-        if not self.data.get('section_title'):
-            raise forms.ValidationError("Section title is required")
-        if not self.data.get('content'):
-            raise forms.ValidationError("Section content is required")
-        
-        # Status validation
-        status = cleaned_data.get('status')
-        if self.instance.pk and self.instance.status in ['approved', 'published', 'archived']:
-            if status != self.instance.status:
-                raise forms.ValidationError("Cannot change status of approved/published reports")
-        
-        return cleaned_data
+        return file_type
 
 class ReportAttachmentForm(forms.ModelForm):
     class Meta:
@@ -215,4 +402,31 @@ class ReportSectionOrderForm(forms.ModelForm):
         order = self.cleaned_data.get('order')
         if order < 1:
             raise forms.ValidationError("Order must be 1 or greater")
-        return order 
+        return order
+
+class LoginForm(forms.Form):
+    username = forms.CharField(widget=forms.TextInput(attrs={
+        'class': 'form-control',
+        'placeholder': 'Username'
+    }))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={
+        'class': 'form-control',
+        'placeholder': 'Password'
+    }))
+
+class RegisterForm(UserCreationForm):
+    email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={
+        'class': 'form-control',
+        'placeholder': 'Email'
+    }))
+
+    class Meta:
+        model = CustomUser
+        fields = ('username', 'email', 'password1', 'password2', 'role')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add Bootstrap classes to all fields
+        for field in self.fields:
+            self.fields[field].widget.attrs['class'] = 'form-control'
+            self.fields[field].widget.attrs['placeholder'] = field.title() 

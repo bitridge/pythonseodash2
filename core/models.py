@@ -3,13 +3,22 @@ from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
 from django.utils import timezone
 
+# Define CustomUser before Project
 class CustomUser(AbstractUser):
-    ROLE_CHOICES = (
+    ROLE_CHOICES = [
         ('admin', 'Administrator'),
         ('provider', 'Provider'),
         ('customer', 'Customer'),
-    )
+    ]
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
+
+    def __str__(self):
+        return self.username
+
+    def get_full_name(self):
+        """Return the first_name plus the last_name, with a space in between."""
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name if full_name else self.username
 
 class Customer(models.Model):
     name = models.CharField(max_length=255)

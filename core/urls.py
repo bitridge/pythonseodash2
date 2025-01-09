@@ -4,12 +4,14 @@ from . import views
 
 urlpatterns = [
     # Authentication URLs
-    path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
+    path('', views.home, name='home'),  # Landing page
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('register/', views.register, name='register'),
     path('profile/', views.profile_view, name='profile'),
 
     # Dashboard URLs
-    path('', views.dashboard, name='dashboard'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     
     # Customer URLs
     path('customers/', views.customer_list, name='customers'),
@@ -51,4 +53,10 @@ urlpatterns = [
     path('settings/reports/', views.settings_reports, name='settings_reports'),
     path('settings/integrations/', views.settings_integrations, name='settings_integrations'),
     path('settings/system/', views.settings_system, name='settings_system'),
+    
+    # User Management URLs
+    path('users/', views.user_list, name='user_list'),
+    path('users/add/', views.user_add, name='user_add'),
+    path('users/<int:pk>/edit/', views.user_edit, name='user_edit'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
 ] 

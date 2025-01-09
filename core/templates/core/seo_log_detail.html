@@ -1,6 +1,10 @@
 {% extends 'core/base.html' %}
 {% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -37,49 +41,65 @@
                 <div class="card-body">
                     <div class="mb-4">
                         <h6>Date</h6>
-                        <p>{{ log.date }}</p>
+                        <p>{{ log.date|date:"F d, Y" }}</p>
                     </div>
 
-                    {% if log.on_page_work %}
                     <div class="mb-4">
-                        <h6>On-Page Work</h6>
-                        <p>{{ log.on_page_description|linebreaks }}</p>
+                        <h6>Work Type</h6>
+                        <p>{{ log.get_work_type_display }}</p>
                     </div>
-                    {% endif %}
 
-                    {% if log.off_page_work %}
                     <div class="mb-4">
-                        <h6>Off-Page Work</h6>
-                        <p>{{ log.off_page_description|linebreaks }}</p>
+                        <h6>Description</h6>
+                        <p>{{ log.description|linebreaks }}</p>
                     </div>
-                    {% endif %}
-                </div>
-            </div>
 
-            <!-- Files -->
-            {% if log.files.exists %}
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Attachments</h5>
-                </div>
-                <div class="card-body">
-                    <div class="list-group">
-                        {% for file in log.files.all %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <i class="fas fa-paperclip me-2"></i>
-                                {{ file.file_name }}
-                                <small class="text-muted">({{ file.file_size|filesizeformat }})</small>
+                    {% if log.files.exists %}
+                    <div class="mb-4">
+                        <h6>Attachments</h6>
+                        <div class="row g-3">
+                            {% for file in log.files.all %}
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    {% if file.file_type == 'image' %}
+                                    <a href="{{ file.file.url }}" data-lightbox="log-images" data-title="{{ file.file_name }}"
+                                       class="text-center bg-light">
+                                        <img src="{{ file.file.url }}" class="card-img-top" alt="{{ file.file_name }}"
+                                             style="height: 150px; object-fit: contain; padding: 10px;">
+                                    </a>
+                                    {% else %}
+                                    <div class="card-body text-center">
+                                        <i class="{{ file.file_icon }} fa-3x mb-2"></i>
+                                        <a href="{{ file.file.url }}" class="stretched-link" target="_blank"></a>
+                                    </div>
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <h6 class="card-title text-truncate">{{ file.file_name }}</h6>
+                                        <p class="card-text small text-muted">{{ file.file_size|filesizeformat }}</p>
+                                        <div class="btn-group w-100">
+                                            {% if file.file_type == 'image' %}
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="window.open('{{ file.file.url }}', '_blank')">
+                                                <i class="fas fa-eye me-1"></i> View
+                                            </button>
+                                            {% else %}
+                                            <a href="{{ file.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="fas fa-eye me-1"></i> View
+                                            </a>
+                                            {% endif %}
+                                            <a href="{{ file.file.url }}" class="btn btn-sm btn-outline-secondary" download>
+                                                <i class="fas fa-download me-1"></i> Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <a href="{{ file.file.url }}" class="btn btn-sm btn-outline-primary" download>
-                                <i class="fas fa-download"></i>
-                            </a>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
+                    {% endif %}
                 </div>
             </div>
-            {% endif %}
         </div>
 
         <div class="col-md-4">
@@ -129,4 +149,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+<script>
+    lightbox.option({
+        'resizeDuration': 200,
+        'wrapAround': true,
+        'albumLabel': 'Image %1 of %2'
+    });
+</script>
 {% endblock %} 

@@ -4,6 +4,68 @@
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+<style>
+    .work-log-list {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+    .file-preview {
+        display: inline-block;
+        margin: 10px;
+        text-align: center;
+    }
+    .file-preview img {
+        max-width: 100px;
+        max-height: 100px;
+        object-fit: contain;
+    }
+    .file-preview .file-name {
+        font-size: 0.8em;
+        word-break: break-all;
+        margin-top: 5px;
+    }
+    .file-preview .remove-file {
+        cursor: pointer;
+        color: #dc3545;
+    }
+    #file-list {
+        margin-top: 10px;
+    }
+    .form-control.is-invalid,
+    .was-validated .form-control:invalid {
+        border-color: #dc3545;
+        padding-right: calc(1.5em + 0.75rem);
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right calc(0.375em + 0.1875rem) center;
+        background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+    }
+    .invalid-feedback {
+        display: block;
+        color: #dc3545;
+    }
+    .log-checkbox {
+        margin-bottom: 10px;
+    }
+    .log-checkbox label {
+        display: block;
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-bottom: 5px;
+        cursor: pointer;
+    }
+    .log-checkbox label:hover {
+        background-color: #f8f9fa;
+    }
+    .log-checkbox input:checked + label {
+        background-color: #e9ecef;
+        border-color: #0d6efd;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -15,7 +77,7 @@
                     <h5 class="card-title mb-0">{{ title }}</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'report_create' project.pk %}" enctype="multipart/form-data" id="reportForm">
+                    <form method="post" action="{% url 'report_create' project.pk %}" enctype="multipart/form-data" id="reportForm" novalidate>
                         {% csrf_token %}
                         
                         {% if form.non_field_errors %}
@@ -35,20 +97,20 @@
                         {% endif %}
                         
                         <div class="mb-3">
-                            <label for="id_title" class="form-label">Report Title</label>
+                            <label for="id_title" class="form-label required">{{ form.title.label }}</label>
                             {{ form.title }}
                             {% if form.title.errors %}
-                            <div class="invalid-feedback d-block">
+                            <div class="invalid-feedback">
                                 {{ form.title.errors }}
                             </div>
                             {% endif %}
                         </div>
                         
                         <div class="mb-3">
-                            <label for="id_description" class="form-label">Description</label>
+                            <label for="id_description" class="form-label">{{ form.description.label }}</label>
                             {{ form.description }}
                             {% if form.description.errors %}
-                            <div class="invalid-feedback d-block">
+                            <div class="invalid-feedback">
                                 {{ form.description.errors }}
                             </div>
                             {% endif %}
@@ -56,64 +118,67 @@
 
                         <!-- Work Logs Selection -->
                         <div class="mb-4">
-                            <h4>Select Work Logs</h4>
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>
-                                                <input type="checkbox" class="form-check-input" id="selectAllLogs">
-                                            </th>
-                                            <th>Date</th>
-                                            <th>Work Type</th>
-                                            <th>Description</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for log in project.seolog_set.all|dictsortreversed:"date" %}
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" name="selected_logs" value="{{ log.id }}" 
-                                                       class="form-check-input log-checkbox">
-                                            </td>
-                                            <td>{{ log.date }}</td>
-                                            <td>
-                                                {% if log.on_page_work %}On-Page{% endif %}
-                                                {% if log.off_page_work %}Off-Page{% endif %}
-                                            </td>
-                                            <td>
-                                                {% if log.on_page_work %}
-                                                    {{ log.on_page_description|truncatechars:100 }}
-                                                {% endif %}
-                                                {% if log.off_page_work %}
-                                                    {{ log.off_page_description|truncatechars:100 }}
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <h4>{{ form.selected_logs.label }}</h4>
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="selectAllLogs">
+                                    <label class="form-check-label" for="selectAllLogs">Select All</label>
+                                </div>
                             </div>
+                            <div class="work-log-list">
+                                {{ form.selected_logs }}
+                            </div>
+                            {% if form.selected_logs.errors %}
+                            <div class="invalid-feedback">
+                                {{ form.selected_logs.errors }}
+                            </div>
+                            {% endif %}
                         </div>
 
                         <!-- Report Section -->
                         <div class="mb-4">
                             <h4>Report Section</h4>
                             <div class="mb-3">
-                                <label class="form-label">Section Title</label>
-                                <input type="text" name="section_title" class="form-control" required>
+                                <label for="id_section_title" class="form-label required">{{ form.section_title.label }}</label>
+                                {{ form.section_title }}
+                                {% if form.section_title.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.section_title.errors }}
+                                </div>
+                                {% endif %}
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Priority (1 starts on first page, each number starts on a new page)</label>
-                                <input type="number" name="priority" class="form-control" min="1" value="1" required>
+                                <label for="id_priority" class="form-label required">{{ form.priority.label }}</label>
+                                {{ form.priority }}
+                                <small class="form-text text-muted">Priority determines page order (1 starts on first page)</small>
+                                {% if form.priority.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.priority.errors }}
+                                </div>
+                                {% endif %}
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Content</label>
-                                <textarea name="content" class="form-control summernote" rows="10" required></textarea>
+                                <label for="id_content" class="form-label required">{{ form.content.label }}</label>
+                                {{ form.content }}
+                                {% if form.content.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.content.errors }}
+                                </div>
+                                {% endif %}
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Attachments</label>
-                                <input type="file" name="attachments" class="form-control" multiple>
+                                <label for="id_attachments" class="form-label">{{ form.attachments.label }}</label>
+                                {{ form.attachments }}
+                                <small class="form-text text-muted d-block">
+                                    Supported formats: Images (JPG, PNG, GIF), Documents (PDF, DOC, DOCX), Spreadsheets (XLS, XLSX)<br>
+                                    Maximum file size: 50MB per file
+                                </small>
+                                {% if form.attachments.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.attachments.errors }}
+                                </div>
+                                {% endif %}
+                                <div id="file-list"></div>
                             </div>
                         </div>
                         
@@ -134,9 +199,15 @@
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
 <script>
 $(document).ready(function() {
+    // Add error class to fields with errors
+    $('.invalid-feedback').each(function() {
+        $(this).prev('.form-control').addClass('is-invalid');
+    });
+
     // Initialize Summernote
     $('.summernote').summernote({
         height: 300,
+        focus: true,
         toolbar: [
             ['style', ['style']],
             ['font', ['bold', 'underline', 'clear']],
@@ -145,29 +216,94 @@ $(document).ready(function() {
             ['table', ['table']],
             ['insert', ['link']],
             ['view', ['fullscreen', 'codeview', 'help']]
-        ]
+        ],
+        callbacks: {
+            onChange: function(contents, $editable) {
+                // Update the hidden textarea with the content
+                $('#id_content').val(contents);
+                // Remove error class if content is not empty
+                if (contents && contents !== '<p><br></p>') {
+                    $('#id_content').removeClass('is-invalid');
+                    $('#id_content').next('.invalid-feedback').hide();
+                }
+            }
+        }
     });
 
     // Handle "Select All" for logs
     $('#selectAllLogs').change(function() {
-        $('.log-checkbox').prop('checked', $(this).prop('checked'));
+        $('.log-checkbox input[type="checkbox"]').prop('checked', $(this).prop('checked'));
     });
 
-    // Priority field validation
-    $('input[name="priority"]').on('input', function() {
-        var value = $(this).val();
-        if (value < 1) {
-            $(this).val(1);
+    // Handle file input change
+    $('#id_attachments').change(function() {
+        const files = this.files;
+        $('#file-list').empty();
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const reader = new FileReader();
+            const div = $('<div>').addClass('file-preview');
+            
+            if (file.type.startsWith('image/')) {
+                reader.onload = function(e) {
+                    div.append($('<img>').attr('src', e.target.result));
+                };
+                reader.readAsDataURL(file);
+            } else {
+                // Show icon based on file type
+                let icon = 'fas fa-file';
+                if (file.type.includes('pdf')) {
+                    icon = 'fas fa-file-pdf';
+                } else if (file.type.includes('word')) {
+                    icon = 'fas fa-file-word';
+                } else if (file.type.includes('sheet') || file.type.includes('excel')) {
+                    icon = 'fas fa-file-excel';
+                }
+                div.append($('<i>').addClass(icon).css('font-size', '48px'));
+            }
+            
+            div.append($('<div>').addClass('file-name').text(file.name));
+            $('#file-list').append(div);
         }
     });
 
-    // Form submission handling
+    // Form validation
     $('#reportForm').on('submit', function(e) {
-        var content = $('.summernote').summernote('code');
-        if (!content) {
+        let isValid = true;
+        
+        // Check required fields
+        ['title', 'section_title', 'priority'].forEach(function(field) {
+            const input = $(`#id_${field}`);
+            if (!input.val()) {
+                input.addClass('is-invalid');
+                isValid = false;
+            } else {
+                input.removeClass('is-invalid');
+            }
+        });
+
+        // Check content
+        const content = $('.summernote').summernote('code');
+        if (!content || content === '<p><br></p>') {
+            $('#id_content').addClass('is-invalid');
+            isValid = false;
+        } else {
+            $('#id_content').removeClass('is-invalid');
+        }
+
+        if (!isValid) {
             e.preventDefault();
-            alert('Please enter content for the report section.');
-            return false;
+            $('html, body').animate({
+                scrollTop: $('.is-invalid').first().offset().top - 100
+            }, 500);
+        }
+    });
+
+    // Remove error class on input
+    $('.form-control').on('input', function() {
+        if ($(this).val()) {
+            $(this).removeClass('is-invalid');
         }
     });
 });

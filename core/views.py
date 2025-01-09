@@ -6,12 +6,13 @@ from functools import wraps
 from .models import Customer, Project, SEOLog, ReportSection, Media, UserSettings, CustomUser, SEOLogFile, Notification, Report, ReportVersion, ReportSectionOrder, ReportAttachment, AttachmentAccess
 from .forms import (
     CustomUserForm, CustomerForm, ProjectForm, SEOLogForm,
-    ReportSectionForm, MediaForm, ReportForm
+    ReportSectionForm, MediaForm, ReportForm, RegisterForm, LoginForm
 )
 from django.template.loader import render_to_string, get_template
 from django.utils import timezone
 from django.conf import settings
 from weasyprint import HTML
+from django.contrib.auth import login, logout, authenticate
 
 def role_required(roles):
     def decorator(view_func):
@@ -213,10 +214,8 @@ def seo_log_list(request):
         logs = logs.filter(project_id=project_id)
     
     log_type = request.GET.get('type')
-    if log_type == 'on_page':
-        logs = logs.filter(on_page_work=True)
-    elif log_type == 'off_page':
-        logs = logs.filter(off_page_work=True)
+    if log_type:
+        logs = logs.filter(work_type=log_type)
     
     date_range = request.GET.get('date')
     if date_range == 'today':
@@ -235,35 +234,49 @@ def seo_log_list(request):
         'title': 'SEO Logs',
         'logs': logs,
         'projects': projects,
+        'log_types': SEOLog.WORK_TYPE_CHOICES,
     })
 
 @login_required
 @role_required(['admin', 'provider'])
 def seo_log_add(request):
     if request.method == 'POST':
-        form = SEOLogForm(request.user, request.POST, request.FILES)
+        form = SEOLogForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
-            log = form.save(commit=False)
-            log.created_by = request.user
-            log.save()
+            seo_log = form.save(commit=False)
+            seo_log.created_by = request.user
+            seo_log.date = timezone.now().date()
+            seo_log.save()
+            form.save_m2m()  # Save many-to-many relationships
             
             # Handle file uploads
-            if request.FILES.getlist('files'):
-                for file in request.FILES.getlist('files'):
-                    SEOLogFile.objects.create(
-                        seo_log=log,
-                        file=file,
-                        work_type='general'
-                    )
+            files = request.FILES.getlist('files')
+            for file in files:
+                # Get file extension
+                ext = file.name.split('.')[-1].lower()
+                # Determine file type based on extension
+                if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                    file_type = 'image'
+                elif ext in ['pdf', 'doc', 'docx']:
+                    file_type = 'document'
+                elif ext in ['xls', 'xlsx']:
+                    file_type = 'spreadsheet'
+                else:
+                    file_type = 'other'
+                
+                SEOLogFile.objects.create(
+                    seo_log=seo_log,
+                    file=file,
+                    work_type=seo_log.work_type,
+                    file_name=file.name,
+                    file_type=file_type,
+                    file_size=file.size
+                )
             
-            messages.success(request, 'SEO log added successfully.')
-            return redirect('seo_log_detail', pk=log.pk)
+            messages.success(request, 'SEO Log added successfully!')
+            return redirect('seo_logs')
     else:
-        initial = {}
-        project_id = request.GET.get('project')
-        if project_id:
-            initial['project'] = project_id
-        form = SEOLogForm(request.user, initial=initial)
+        form = SEOLogForm(user=request.user)
     
     return render(request, 'core/seo_log_form.html', {
         'title': 'Add SEO Log',
@@ -296,7 +309,7 @@ def report_create(request, project_pk):
         return HttpResponseForbidden("You don't have permission to create reports for this project.")
     
     if request.method == 'POST':
-        form = ReportForm(request.POST)
+        form = ReportForm(request.POST, request.FILES, project=project, user=request.user)
         if form.is_valid():
             try:
                 # Create the report
@@ -308,32 +321,32 @@ def report_create(request, project_pk):
                 # Create the report section
                 section = ReportSection.objects.create(
                     project=project,
-                    title=request.POST.get('section_title'),
-                    content=request.POST.get('content'),
-                    priority=int(request.POST.get('priority', 1))
+                    title=form.cleaned_data['section_title'],
+                    content=form.cleaned_data['content'],
+                    priority=form.cleaned_data['priority']
                 )
                 
                 # Add selected work logs
-                selected_logs = request.POST.getlist('selected_logs')
+                selected_logs = form.cleaned_data.get('selected_logs', [])
                 if selected_logs:
-                    section.seo_logs.add(*selected_logs)
+                    section.seo_logs.set(selected_logs)
                 
                 # Handle attachments
-                if request.FILES.getlist('attachments'):
-                    for file in request.FILES.getlist('attachments'):
-                        attachment = ReportAttachment.objects.create(
-                            report_section=section,
-                            file=file,
-                            title=file.name,
-                            file_type=file.content_type,
-                            file_size=file.size
-                        )
+                attachments = request.FILES.getlist('attachments')
+                for file in attachments:
+                    attachment = ReportAttachment.objects.create(
+                        report_section=section,
+                        file=file,
+                        title=file.name,
+                        file_type=file.content_type,
+                        file_size=file.size
+                    )
                 
                 # Add section to report with proper order
                 ReportSectionOrder.objects.create(
                     report=report,
                     section=section,
-                    order=1,
+                    order=form.cleaned_data['priority'],
                     page_break_before=True
                 )
                 
@@ -353,7 +366,7 @@ def report_create(request, project_pk):
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
-        form = ReportForm(initial={'project': project})
+        form = ReportForm(project=project, user=request.user)
     
     return render(request, 'core/report_form.html', {
         'title': 'Create Report',
@@ -588,13 +601,15 @@ def seo_log_edit(request, pk):
         return HttpResponseForbidden("You don't have permission to edit this log.")
     
     if request.method == 'POST':
-        form = SEOLogForm(request.user, request.POST, instance=log)
+        form = SEOLogForm(request.POST, request.FILES, user=request.user, instance=log)
         if form.is_valid():
-            form.save()
+            log = form.save(commit=False)
+            log.save()
+            form.save_m2m()  # Save many-to-many relationships and files
             messages.success(request, 'SEO log updated successfully.')
             return redirect('seo_log_detail', pk=pk)
     else:
-        form = SEOLogForm(request.user, instance=log)
+        form = SEOLogForm(instance=log, user=request.user)
     
     return render(request, 'core/seo_log_form.html', {
         'title': f'Edit SEO Log: {log.project.name} - {log.date}',
@@ -788,3 +803,97 @@ def report_delete(request, pk):
         return redirect('project_detail', pk=project_id)
     
     return redirect('report_detail', pk=pk)
+
+def home(request):
+    return render(request, 'core/home.html')
+
+def login_view(request):
+    if request.method == 'POST':
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(username=username, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, f'Welcome back, {username}!')
+                return redirect('dashboard')
+            else:
+                messages.error(request, 'Invalid username or password.')
+    else:
+        form = LoginForm()
+    return render(request, 'core/auth/login.html', {'form': form})
+
+def logout_view(request):
+    logout(request)
+    messages.info(request, 'You have been logged out successfully.')
+    return redirect('home')
+
+def register(request):
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            messages.success(request, 'Registration successful!')
+            return redirect('dashboard')
+    else:
+        form = RegisterForm()
+    return render(request, 'core/auth/register.html', {'form': form})
+
+@login_required
+@role_required(['admin'])
+def user_list(request):
+    users = CustomUser.objects.all().order_by('username')
+    return render(request, 'core/user_list.html', {
+        'title': 'User Management',
+        'users': users,
+    })
+
+@login_required
+@role_required(['admin'])
+def user_add(request):
+    if request.method == 'POST':
+        form = CustomUserForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data['password'])
+            user.save()
+            messages.success(request, 'User added successfully.')
+            return redirect('user_list')
+    else:
+        form = CustomUserForm()
+    
+    return render(request, 'core/user_form.html', {
+        'title': 'Add User',
+        'form': form,
+    })
+
+@login_required
+@role_required(['admin'])
+def user_edit(request, pk):
+    user = get_object_or_404(CustomUser, pk=pk)
+    if request.method == 'POST':
+        form = CustomUserForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'User updated successfully.')
+            return redirect('user_list')
+    else:
+        form = CustomUserForm(instance=user)
+    
+    return render(request, 'core/user_form.html', {
+        'title': f'Edit User: {user.username}',
+        'form': form,
+        'user_obj': user,
+    })
+
+@login_required
+@role_required(['admin'])
+def user_delete(request, pk):
+    user = get_object_or_404(CustomUser, pk=pk)
+    if request.method == 'POST':
+        user.delete()
+        messages.success(request, 'User deleted successfully.')
+        return redirect('user_list')
+    return redirect('user_list')
