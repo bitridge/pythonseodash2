@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
 from django.utils import timezone
+import os
+from .utils import generate_unique_filename
 
 # Define CustomUser before Project
 class CustomUser(AbstractUser):
@@ -91,7 +93,7 @@ class SEOLogFile(models.Model):
     ]
 
     seo_log = models.ForeignKey(SEOLog, on_delete=models.CASCADE, related_name='files')
-    file = models.FileField(upload_to='seo_logs/%Y/%m/%d/')
+    file = models.FileField(upload_to='')  # Store in main media folder
     work_type = models.CharField(max_length=10, choices=WORK_TYPE_CHOICES)
     file_name = models.CharField(max_length=255)
     file_type = models.CharField(max_length=100)
@@ -102,23 +104,34 @@ class SEOLogFile(models.Model):
         return self.file_name
 
     def save(self, *args, **kwargs):
-        if not self.file_name:
-            self.file_name = self.file.name
-        if not self.file_type:
-            # Get file type from extension
-            ext = self.file.name.split('.')[-1].lower()
-            if ext in ['jpg', 'jpeg', 'png', 'gif']:
-                self.file_type = f'image/{ext}'
-            elif ext == 'pdf':
-                self.file_type = 'application/pdf'
-            elif ext in ['doc', 'docx']:
-                self.file_type = 'application/msword'
-            elif ext in ['xls', 'xlsx']:
-                self.file_type = 'application/vnd.ms-excel'
-            else:
-                self.file_type = 'application/octet-stream'
-        if not self.file_size:
-            self.file_size = self.file.size
+        if not self.pk:  # Only on creation
+            if self.file:
+                # Generate unique filename with seo prefix
+                original_filename = self.file.name
+                new_filename = generate_unique_filename(original_filename, prefix='seo')
+                
+                # Set the new filename
+                self.file.name = new_filename
+                
+                # Set file name
+                self.file_name = new_filename
+                
+                # Get file type from extension
+                ext = os.path.splitext(self.file.name)[1].lower()[1:]  # Remove the dot
+                if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                    self.file_type = f'image/{ext}'
+                elif ext == 'pdf':
+                    self.file_type = 'application/pdf'
+                elif ext in ['doc', 'docx']:
+                    self.file_type = 'application/msword'
+                elif ext in ['xls', 'xlsx']:
+                    self.file_type = 'application/vnd.ms-excel'
+                else:
+                    self.file_type = 'application/octet-stream'
+                
+                # Set file size
+                self.file_size = self.file.size
+                
         super().save(*args, **kwargs)
 
     class Meta:
@@ -177,11 +190,11 @@ class ReportSection(models.Model):
 
 class ReportAttachment(models.Model):
     report_section = models.ForeignKey(ReportSection, on_delete=models.CASCADE, related_name='attachments')
-    file = models.FileField(upload_to='report_attachments/%Y/%m/')
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    file = models.FileField(upload_to='')  # Store in main media folder
     file_type = models.CharField(max_length=50)
-    file_size = models.PositiveIntegerField()  # Size in bytes
+    file_size = models.IntegerField()  # Size in bytes
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -189,11 +202,46 @@ class ReportAttachment(models.Model):
         return self.title
 
     def save(self, *args, **kwargs):
-        if not self.file_type and self.file:
-            self.file_type = self.file.name.split('.')[-1].lower()
-        if not self.file_size and self.file:
-            self.file_size = self.file.size
+        if not self.pk:  # Only on creation
+            if self.file:
+                # Generate unique filename with report prefix
+                original_filename = self.file.name
+                new_filename = generate_unique_filename(original_filename, prefix='report')
+                
+                # Set the new filename
+                self.file.name = new_filename
+                
+                # Set title if not provided
+                if not self.title:
+                    self.title = os.path.splitext(original_filename)[0]
+                
+                # Get file type from extension
+                ext = os.path.splitext(self.file.name)[1].lower()[1:]  # Remove the dot
+                if ext in ['jpg', 'jpeg', 'png', 'gif']:
+                    self.file_type = 'image'
+                elif ext == 'pdf':
+                    self.file_type = 'pdf'
+                elif ext in ['doc', 'docx']:
+                    self.file_type = 'document'
+                elif ext in ['xls', 'xlsx']:
+                    self.file_type = 'spreadsheet'
+                else:
+                    self.file_type = 'other'
+                
+                # Set file size
+                self.file_size = self.file.size
+        
         super().save(*args, **kwargs)
+
+    @property
+    def file_size_formatted(self):
+        """Return human-readable file size."""
+        size = self.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
 
 class Report(models.Model):
     STATUS_CHOICES = [

@@ -98,7 +98,11 @@ class SEOLogForm(forms.ModelForm):
             'project': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'work_type': forms.Select(attrs={'class': 'form-select'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control summernote',
+                'rows': 4,
+                'placeholder': 'Enter work description'
+            }),
         }
 
     def __init__(self, *args, **kwargs):
@@ -196,47 +200,12 @@ class ReportForm(forms.ModelForm):
     selected_logs = forms.ModelMultipleChoiceField(
         label='Select Work Logs',
         queryset=SEOLog.objects.none(),
+        required=False,
         widget=forms.CheckboxSelectMultiple(attrs={
             'class': 'log-checkbox'
-        }),
-        required=False
-    )
-    
-    section_title = forms.CharField(
-        label='Section Title',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter section title'
         })
     )
     
-    priority = forms.IntegerField(
-        label='Priority',
-        min_value=1,
-        initial=1,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Enter priority number'
-        })
-    )
-    
-    content = forms.CharField(
-        label='Content',
-        widget=forms.Textarea(attrs={
-            'class': 'form-control summernote',
-            'placeholder': 'Enter section content'
-        })
-    )
-    
-    attachments = MultipleFileField(
-        label='Attachments',
-        required=False,
-        widget=MultipleFileInput(attrs={
-            'class': 'form-control',
-            'accept': '.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx'
-        })
-    )
-
     class Meta:
         model = Report
         fields = ['title', 'description']
@@ -263,76 +232,54 @@ class ReportForm(forms.ModelForm):
             else:
                 self.fields['selected_logs'].queryset = SEOLog.objects.filter(project=project)
 
-    def clean_content(self):
-        content = self.cleaned_data.get('content')
-        if not content or content == '<p><br></p>':
-            raise ValidationError('Please enter content for the report section.')
-        return content
-
-    def clean_priority(self):
-        priority = self.cleaned_data.get('priority')
-        if priority and priority < 1:
-            raise ValidationError('Priority must be a positive number.')
-        return priority
-
-    def clean_attachments(self):
-        attachments = self.files.getlist('attachments')
-        max_size = 50 * 1024 * 1024  # 50MB
-        allowed_types = [
-            'image/jpeg', 'image/png', 'image/gif',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        ]
+    def clean(self):
+        cleaned_data = super().clean()
         
-        for attachment in attachments:
-            if attachment.size > max_size:
-                raise ValidationError(f'File {attachment.name} is too large. Maximum size is 50MB.')
-            if attachment.content_type not in allowed_types:
-                raise ValidationError(f'File {attachment.name} has an unsupported format.')
+        # Get section data from POST
+        section_titles = self.data.getlist('section_title[]', [])
+        section_contents = self.data.getlist('section_content[]', [])
+        section_priorities = self.data.getlist('section_priority[]', [])
         
-        return attachments
-
-    def save(self, commit=True):
-        report = super().save(commit=False)
-        if commit:
-            report.save()
-            
-            # Create report section
-            section = ReportSection.objects.create(
-                report=report,
-                title=self.cleaned_data['section_title'],
-                content=self.cleaned_data['content'],
-                priority=self.cleaned_data['priority']
-            )
-            
-            # Link selected logs to the report
-            selected_logs = self.cleaned_data.get('selected_logs')
-            if selected_logs:
-                report.logs.set(selected_logs)
-            
-            # Handle file attachments
-            attachments = self.files.getlist('attachments')
-            for attachment in attachments:
-                section.attachments.create(
-                    file=attachment,
-                    name=attachment.name,
-                    content_type=attachment.content_type,
-                    size=attachment.size
-                )
+        # Validate at least one section exists
+        if not section_titles:
+            raise ValidationError('At least one report section is required.')
         
-        return report
+        # Validate each section
+        for i, title in enumerate(section_titles):
+            if not title:
+                raise ValidationError(f'Section {i+1} title is required.')
+            
+            if i < len(section_contents) and not section_contents[i]:
+                raise ValidationError(f'Content is required for section {i+1}.')
+            
+            if i < len(section_priorities):
+                try:
+                    priority = int(section_priorities[i])
+                    if priority < 1:
+                        raise ValidationError(f'Priority for section {i+1} must be a positive number.')
+                except (ValueError, TypeError):
+                    raise ValidationError(f'Invalid priority value for section {i+1}.')
+        
+        return cleaned_data
 
 class ReportSectionForm(forms.ModelForm):
+    attachments = MultipleFileField(
+        required=False,
+        widget=MultipleFileInput(
+            attrs={
+                'class': 'form-control',
+                'accept': 'image/*,.pdf,.doc,.docx,.xls,.xlsx'
+            }
+        )
+    )
+
     class Meta:
         model = ReportSection
-        fields = ['title', 'content', 'priority', 'files', 'seo_logs']
+        fields = ['title', 'content', 'priority', 'seo_logs']
         widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
             'content': forms.Textarea(attrs={'rows': 6, 'class': 'summernote'}),
             'priority': forms.NumberInput(attrs={'min': 1, 'class': 'form-control'}),
-            'files': forms.SelectMultiple(attrs={'class': 'select2'}),
             'seo_logs': forms.SelectMultiple(attrs={'class': 'select2'}),
         }
 
@@ -341,6 +288,22 @@ class ReportSectionForm(forms.ModelForm):
         if priority < 1:
             raise forms.ValidationError("Priority must be 1 or greater")
         return priority
+
+    def save(self, commit=True):
+        section = super().save(commit=commit)
+        
+        # Handle file uploads
+        if self.cleaned_data.get('attachments'):
+            for file in self.cleaned_data['attachments']:
+                attachment = ReportAttachment(
+                    report_section=section,
+                    title=file.name,
+                    file=file
+                )
+                if commit:
+                    attachment.save()
+        
+        return section
 
 class MediaForm(forms.ModelForm):
     class Meta:

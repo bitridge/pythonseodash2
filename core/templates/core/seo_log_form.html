@@ -2,57 +2,33 @@
 {% load static %}
 
 {% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
 <style>
-    .file-upload-area {
-        border: 2px dashed #ddd;
-        border-radius: 4px;
-        padding: 20px;
-        text-align: center;
-        margin-bottom: 20px;
-        cursor: pointer;
-        position: relative;
-    }
-
-    .file-upload-area.dragover {
-        background-color: #f8f9fa;
-        border-color: #0d6efd;
-    }
-
-    .file-input {
-        opacity: 0;
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        cursor: pointer;
-    }
-
     .file-preview {
+        margin-top: 1rem;
+    }
+    .file-preview img {
+        max-width: 150px;
+        height: auto;
+        margin: 0.5rem;
+        border-radius: 0.25rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .file-preview .file-item {
         display: inline-block;
-        margin: 10px;
+        margin: 0.5rem;
+        padding: 0.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        background-color: #f8f9fa;
+    }
+    .file-preview .file-name {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
         text-align: center;
     }
-
-    .file-preview img {
-        max-width: 100px;
-        max-height: 100px;
-        object-fit: contain;
-    }
-
-    .file-preview .file-name {
-        font-size: 0.8em;
-        word-break: break-all;
-        margin-top: 5px;
-    }
-
-    .file-preview .remove-file {
-        cursor: pointer;
-        color: #dc3545;
-    }
-
-    #file-list {
-        margin-top: 10px;
+    .note-editor {
+        margin-bottom: 1rem;
     }
 </style>
 {% endblock %}
@@ -63,93 +39,61 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">{{ title }}</h5>
+                    <h2>{{ title }}</h2>
                 </div>
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data" id="seoLogForm">
+                    <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         
-                        {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {{ form.non_field_errors }}
-                        </div>
-                        {% endif %}
-
-                        <div class="mb-3">
-                            <label for="{{ form.project.id_for_label }}" class="form-label">Project</label>
-                            {{ form.project }}
-                            {% if form.project.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.project.errors }}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.project.label }}</label>
+                                    {{ form.project }}
+                                    {% if form.project.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.project.errors }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
-                            {{ form.date }}
-                            {% if form.date.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.date.errors }}
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ form.date.label }}</label>
+                                    {{ form.date }}
+                                    {% if form.date.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.date.errors }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
-                            {% endif %}
                         </div>
 
                         <div class="mb-3">
-                            <label for="{{ form.work_type.id_for_label }}" class="form-label">Work Type</label>
+                            <label class="form-label">{{ form.work_type.label }}</label>
                             {{ form.work_type }}
                             {% if form.work_type.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.work_type.errors }}
-                            </div>
+                            <div class="invalid-feedback d-block">{{ form.work_type.errors }}</div>
                             {% endif %}
                         </div>
 
                         <div class="mb-3">
-                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            <label class="form-label">{{ form.description.label }}</label>
                             {{ form.description }}
                             {% if form.description.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.description.errors }}
-                            </div>
+                            <div class="invalid-feedback d-block">{{ form.description.errors }}</div>
                             {% endif %}
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Attachments</label>
-                            <div class="file-upload-area" id="dropZone">
-                                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
-                                <p>Drag and drop files here or click to browse</p>
-                                {{ form.files }}
-                            </div>
-                            <small class="form-text text-muted">
-                                Supported formats: Images (JPG, PNG, GIF), Documents (PDF, DOC, DOCX), Spreadsheets (XLS, XLSX)<br>
-                                Maximum file size: 50MB per file
-                            </small>
+                            {{ form.files }}
                             {% if form.files.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.files.errors }}
-                            </div>
+                            <div class="invalid-feedback d-block">{{ form.files.errors }}</div>
                             {% endif %}
-                            <div id="file-list">
-                                {% if seo_log_files %}
-                                {% for file in seo_log_files %}
-                                <div class="file-preview">
-                                    {% if file.is_image %}
-                                    <img src="{{ file.file.url }}" alt="{{ file.file_name }}">
-                                    {% else %}
-                                    <i class="fas fa-file fa-3x"></i>
-                                    {% endif %}
-                                    <div class="file-name">{{ file.file_name }}</div>
-                                </div>
-                                {% endfor %}
-                                {% endif %}
-                            </div>
+                            <div class="file-preview" id="filePreview"></div>
                         </div>
 
                         <div class="text-end">
                             <a href="{% url 'seo_logs' %}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Save</button>
+                            <button type="submit" class="btn btn-primary">Save SEO Log</button>
                         </div>
                     </form>
                 </div>
@@ -160,124 +104,50 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
 <script>
 $(document).ready(function() {
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.querySelector('.file-input');
-    const fileList = document.getElementById('file-list');
-
-    // Prevent default drag behaviors
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
+    // Initialize Summernote
+    $('.summernote').summernote({
+        height: 200,
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'underline', 'clear']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link']],
+            ['view', ['fullscreen', 'codeview', 'help']]
+        ]
     });
 
-    // Highlight drop zone when item is dragged over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-
-    // Handle dropped files
-    dropZone.addEventListener('drop', handleDrop, false);
-    
-    // Handle files selected through click
-    fileInput.addEventListener('change', function(e) {
-        handleFiles(e.target.files);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    function highlight(e) {
-        dropZone.classList.add('dragover');
-    }
-
-    function unhighlight(e) {
-        dropZone.classList.remove('dragover');
-    }
-
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        handleFiles(files);
-    }
-
-    function handleFiles(files) {
-        fileList.innerHTML = '';
-        Array.from(files).forEach(file => {
-            if (validateFile(file)) {
-                createFilePreview(file);
+    // Handle file preview
+    $('input[type="file"]').change(function(e) {
+        const preview = $('#filePreview');
+        preview.empty();
+        
+        for(let file of e.target.files) {
+            if(file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    preview.append(`
+                        <div class="file-item">
+                            <img src="${reader.result}" alt="${file.name}">
+                            <div class="file-name">${file.name}</div>
+                        </div>
+                    `);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.append(`
+                    <div class="file-item">
+                        <i class="fas fa-file fa-2x"></i>
+                        <div class="file-name">${file.name}</div>
+                    </div>
+                `);
             }
-        });
-    }
-
-    function validateFile(file) {
-        const maxSize = 50 * 1024 * 1024; // 50MB
-        const allowedTypes = [
-            'image/jpeg', 'image/png', 'image/gif',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        ];
-
-        if (file.size > maxSize) {
-            alert(`File ${file.name} is too large. Maximum size is 50MB.`);
-            return false;
         }
-
-        if (!allowedTypes.includes(file.type)) {
-            alert(`File ${file.name} has an unsupported format.`);
-            return false;
-        }
-
-        return true;
-    }
-
-    function createFilePreview(file) {
-        const preview = document.createElement('div');
-        preview.className = 'file-preview';
-
-        if (file.type.startsWith('image/')) {
-            const img = document.createElement('img');
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                img.src = e.target.result;
-            }
-            reader.readAsDataURL(file);
-            preview.appendChild(img);
-        } else {
-            const icon = document.createElement('i');
-            icon.className = getFileIcon(file.type);
-            icon.style.fontSize = '48px';
-            preview.appendChild(icon);
-        }
-
-        const fileName = document.createElement('div');
-        fileName.className = 'file-name';
-        fileName.textContent = file.name;
-        preview.appendChild(fileName);
-
-        fileList.appendChild(preview);
-    }
-
-    function getFileIcon(fileType) {
-        if (fileType.includes('pdf')) {
-            return 'fas fa-file-pdf';
-        } else if (fileType.includes('word')) {
-            return 'fas fa-file-word';
-        } else if (fileType.includes('sheet') || fileType.includes('excel')) {
-            return 'fas fa-file-excel';
-        }
-        return 'fas fa-file';
-    }
+    });
 });
 </script>
 {% endblock %} 

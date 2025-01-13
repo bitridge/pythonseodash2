@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -5,38 +6,33 @@
     <title>{{ report.title }}</title>
     <style>
         @page {
-            size: letter portrait;
-            margin: 2.5cm;
+            size: A4;
+            margin: 2.5cm 1.5cm;
             @top-right {
                 content: "Page " counter(page) " of " counter(pages);
                 font-size: 9pt;
             }
         }
-        
         body {
             font-family: Arial, sans-serif;
             font-size: 11pt;
             line-height: 1.6;
             color: #333;
+            max-width: 100%;
         }
-        
         .header {
             text-align: center;
             margin-bottom: 2cm;
         }
-        
-        .customer-logo {
+        .logo {
             max-width: 200px;
-            max-height: 100px;
             margin-bottom: 1cm;
         }
-        
         h1 {
             color: #2c3e50;
             font-size: 24pt;
             margin-bottom: 0.5cm;
         }
-        
         h2 {
             color: #34495e;
             font-size: 18pt;
@@ -44,197 +40,214 @@
             margin-bottom: 0.5cm;
             page-break-after: avoid;
         }
-        
         h3 {
-            color: #7f8c8d;
+            color: #34495e;
             font-size: 14pt;
             margin-top: 0.8cm;
-            margin-bottom: 0.4cm;
+            margin-bottom: 0.3cm;
         }
-
-        h4 {
-            color: #2c3e50;
-            font-size: 12pt;
-            margin-top: 0.4cm;
-            margin-bottom: 0.2cm;
-        }
-        
-        .meta {
-            color: #7f8c8d;
-            font-size: 10pt;
+        .project-info {
             margin-bottom: 1cm;
-        }
-        
-        .section {
-            margin-bottom: 1cm;
-        }
-        
-        .section-content {
-            text-align: justify;
-            margin-bottom: 1cm;
-        }
-        
-        .seo-logs {
-            margin-top: 1cm;
-            margin-bottom: 1cm;
-        }
-        
-        .seo-log {
-            background-color: #f8f9fa;
             padding: 0.5cm;
-            margin-bottom: 0.5cm;
-            border: 1px solid #e9ecef;
+            background-color: #f8f9fa;
             border-radius: 4px;
         }
-        
-        .log-header {
-            border-bottom: 1px solid #e9ecef;
-            padding-bottom: 0.2cm;
-            margin-bottom: 0.3cm;
+        .section {
+            margin-bottom: 1cm;
+            page-break-inside: avoid;
         }
-        
-        .log-type {
-            color: #2980b9;
-            margin-top: 0.3cm;
-            margin-bottom: 0.2cm;
-            font-size: 11pt;
+        .section-content {
+            margin-bottom: 0.5cm;
         }
-        
-        .log-content {
-            margin-bottom: 0.3cm;
+        .section-images {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1cm;
+            margin: 1cm 0;
         }
-        
-        .log-content p {
-            margin: 0;
-            padding: 0;
-        }
-        
-        .log-files {
-            margin-top: 0.3cm;
-            padding-top: 0.3cm;
-            border-top: 1px solid #e9ecef;
-        }
-        
-        .log-files ul {
-            margin: 0;
-            padding-left: 0.5cm;
-        }
-        
-        .log-files li {
-            margin-bottom: 0.1cm;
-        }
-        
-        .attachment-list {
-            margin: 0.5cm 0;
-            padding-left: 0.5cm;
-        }
-        
-        .attachment-item {
-            margin-bottom: 0.2cm;
-        }
-        
-        .footer {
-            position: fixed;
-            bottom: 0;
+        .section-image {
+            break-inside: avoid;
+            text-align: center;
             width: 100%;
+            margin-bottom: 1cm;
+        }
+        .section-image img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 0.3cm;
+        }
+        .section-image .caption {
+            font-size: 9pt;
+            color: #666;
+            margin-top: 0.2cm;
+        }
+        .work-log {
+            margin-bottom: 1cm;
+            padding: 0.5cm;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            break-inside: avoid;
+        }
+        .work-log-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3cm;
+            align-items: center;
+        }
+        .work-type {
+            background-color: #007bff;
+            color: white;
+            padding: 0.2cm 0.4cm;
+            border-radius: 4px;
+            font-size: 9pt;
+        }
+        .date {
+            color: #666;
+            font-size: 9pt;
+        }
+        .work-log-content {
+            margin-bottom: 0.5cm;
+        }
+        .work-log-files {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5cm;
+            margin-top: 0.5cm;
+        }
+        .log-image {
+            break-inside: avoid;
+            text-align: center;
+        }
+        .log-image img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 0.2cm;
+        }
+        .log-image .caption {
+            font-size: 9pt;
+            color: #666;
+        }
+        .section-logs {
+            margin-bottom: 1cm;
+        }
+        .section-logs h3 {
+            color: #34495e;
+            font-size: 14pt;
+            margin-top: 0.8cm;
+            margin-bottom: 0.5cm;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 0.2cm;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1cm 0;
+        }
+        th, td {
+            padding: 0.3cm;
+            border: 1px solid #dee2e6;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .footer {
+            position: running(footer);
             text-align: center;
             font-size: 9pt;
-            color: #95a5a6;
-            padding: 1cm 0;
+            color: #666;
         }
-        
         .page-break {
             page-break-before: always;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <div class="header">
         {% if report.project.customer.logo %}
-        <img src="{{ report.project.customer.logo.url }}" alt="{{ report.project.customer.name }} Logo" class="customer-logo">
+        <img src="{{ report.project.customer.logo.url }}" alt="Logo" class="logo">
         {% endif %}
         <h1>{{ report.title }}</h1>
-        <div class="meta">
-            Project: {{ report.project.name }}<br>
-            Generated: {{ report.created_at|date:"F d, Y" }}<br>
-            Version: {{ report.version }}
+        <div class="project-info">
+            <p><strong>Project:</strong> {{ report.project.name }}</p>
+            <p><strong>Date:</strong> {{ report.created_at|date:"F j, Y" }}</p>
+            <p><strong>Created by:</strong> {{ report.created_by.get_full_name }}</p>
         </div>
     </div>
 
-    <!-- Content Sections -->
-    {% for section in sections %}
-    {% if not forloop.first %}
-    {% with previous_section=sections|slice:forloop.counter0|last %}
-        {% if section.priority != previous_section.priority %}
-        <div class="page-break"></div>
-        {% endif %}
-    {% endwith %}
-    {% endif %}
-    
+    {% if report.description %}
     <div class="section">
+        <div class="section-content">
+            {{ report.description|safe }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Content Sections -->
+    {% for section in report.sections.all %}
+    <div class="section{% if section.page_break_before %} page-break{% endif %}">
         <h2>{{ section.title }}</h2>
         <div class="section-content">
             {{ section.content|safe }}
         </div>
 
-        {% if section.seo_logs.exists %}
-        <div class="seo-logs">
-            <h3>Work Logs</h3>
-            {% for log in section.seo_logs.all|dictsortreversed:"date" %}
-            <div class="seo-log">
-                <div class="log-header">
-                    <strong>{{ log.date|date:"F d, Y" }}</strong>
+        {% if section.attachments.exists %}
+        <div class="section-images">
+            {% for attachment in section.attachments.all %}
+            {% if attachment.file_type == 'image' %}
+            <div class="section-image">
+                <img src="{{ attachment.file.url }}" alt="{{ attachment.title }}">
+                <div class="caption">{{ attachment.title }}</div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Work Logs Section -->
+    <div class="section page-break">
+        <h2>Work Logs</h2>
+        {% with selected_logs=report.sections.first.seo_logs.all %}
+        {% if selected_logs %}
+        <div class="section-logs">
+            {% for log in selected_logs %}
+            <div class="work-log">
+                <div class="work-log-header">
+                    <span class="work-type">{{ log.get_work_type_display }}</span>
+                    <span class="date">{{ log.date|date:"F j, Y" }}</span>
                 </div>
-                {% if log.on_page_work %}
-                <div class="log-content">
-                    <h4 class="log-type">On-Page Work</h4>
-                    <p>{{ log.on_page_description|linebreaks }}</p>
+                <div class="work-log-content">
+                    {{ log.description|safe }}
                 </div>
-                {% endif %}
-                {% if log.off_page_work %}
-                <div class="log-content">
-                    <h4 class="log-type">Off-Page Work</h4>
-                    <p>{{ log.off_page_description|linebreaks }}</p>
-                </div>
-                {% endif %}
                 {% if log.files.exists %}
-                <div class="log-files">
-                    <h4>Attachments</h4>
-                    <ul>
+                <div class="work-log-files">
                     {% for file in log.files.all %}
-                        <li>{{ file.file_name }}</li>
+                    {% if file.file_type == 'image' %}
+                    <div class="log-image">
+                        <img src="{{ file.file.url }}" alt="{{ file.title }}">
+                        <div class="caption">{{ file.title }}</div>
+                    </div>
+                    {% endif %}
                     {% endfor %}
-                    </ul>
                 </div>
                 {% endif %}
             </div>
             {% endfor %}
         </div>
         {% endif %}
-
-        {% if section.attachments.exists %}
-        <div class="attachments">
-            <h3>Attachments</h3>
-            <ul class="attachment-list">
-                {% for attachment in section.attachments.all %}
-                <li class="attachment-item">
-                    {{ attachment.title }}
-                    {% if attachment.description %}
-                    <br>
-                    <small>{{ attachment.description }}</small>
-                    {% endif %}
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
+        {% endwith %}
     </div>
-    {% endfor %}
 
-    <!-- Footer -->
     <div class="footer">
-        {{ report.project.customer.name }} - SEO Work Report
+        Generated on {{ report.created_at|date:"F j, Y" }} | {{ report.project.name }}
     </div>
 </body>
 </html> 

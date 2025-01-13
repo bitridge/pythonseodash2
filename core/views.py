@@ -27,69 +27,124 @@ def role_required(roles):
 
 @login_required
 def dashboard(request):
+    today = timezone.now().date()
+    user = request.user
+
+    # Get counts based on user role
+    if user.role == 'admin':
+        customer_count = Customer.objects.count()
+        active_projects_count = Project.objects.filter(is_active=True).count()
+        todays_logs_count = SEOLog.objects.filter(date=today).count()
+        reports_count = Report.objects.count()
+        
+        # Get active projects with progress
+        active_projects = Project.objects.filter(is_active=True)[:5]
+        for project in active_projects:
+            total_logs = SEOLog.objects.filter(project=project).count()
+            if total_logs > 0:
+                completed_logs = SEOLog.objects.filter(
+                    project=project, 
+                    work_type__in=['completed', 'published']
+                ).count()
+                project.progress = int((completed_logs / total_logs) * 100)
+            else:
+                project.progress = 0
+    
+    elif user.role == 'provider':
+        customer_count = Customer.objects.filter(projects__providers=user).distinct().count()
+        active_projects_count = Project.objects.filter(providers=user, is_active=True).count()
+        todays_logs_count = SEOLog.objects.filter(created_by=user, date=today).count()
+        reports_count = Report.objects.filter(created_by=user).count()
+        
+        # Get provider's active projects with progress
+        active_projects = Project.objects.filter(providers=user, is_active=True)[:5]
+        for project in active_projects:
+            total_logs = SEOLog.objects.filter(project=project, created_by=user).count()
+            if total_logs > 0:
+                completed_logs = SEOLog.objects.filter(
+                    project=project,
+                    created_by=user,
+                    work_type__in=['completed', 'published']
+                ).count()
+                project.progress = int((completed_logs / total_logs) * 100)
+            else:
+                project.progress = 0
+    
+    else:  # customer
+        customer_count = 1  # themselves
+        active_projects_count = Project.objects.filter(customer=user, is_active=True).count()
+        todays_logs_count = SEOLog.objects.filter(project__customer=user, date=today).count()
+        reports_count = Report.objects.filter(project__customer=user).count()
+        
+        # Get customer's active projects with progress
+        active_projects = Project.objects.filter(customer=user, is_active=True)[:5]
+        for project in active_projects:
+            total_logs = SEOLog.objects.filter(project=project).count()
+            if total_logs > 0:
+                completed_logs = SEOLog.objects.filter(
+                    project=project,
+                    work_type__in=['completed', 'published']
+                ).count()
+                project.progress = int((completed_logs / total_logs) * 100)
+            else:
+                project.progress = 0
+
+    # Get recent activities
+    recent_activities = []
+    
+    # Get recent SEO logs
+    recent_logs = SEOLog.objects.select_related('project', 'created_by')
+    if user.role == 'provider':
+        recent_logs = recent_logs.filter(created_by=user)
+    elif user.role == 'customer':
+        recent_logs = recent_logs.filter(project__customer=user)
+    recent_logs = recent_logs.order_by('-date')[:5]
+    
+    for log in recent_logs:
+        # Convert date to datetime for consistent comparison
+        timestamp = timezone.datetime.combine(log.date, timezone.datetime.min.time())
+        timestamp = timezone.make_aware(timestamp)
+        recent_activities.append({
+            'type': 'log',
+            'icon': 'fas fa-tasks',
+            'color': 'success',
+            'title': f'New SEO Log - {log.project.name}',
+            'description': f'{log.get_work_type_display()}: {log.description[:100]}...',
+            'timestamp': timestamp
+        })
+    
+    # Get recent reports
+    recent_reports = Report.objects.select_related('project', 'created_by')
+    if user.role == 'provider':
+        recent_reports = recent_reports.filter(created_by=user)
+    elif user.role == 'customer':
+        recent_reports = recent_reports.filter(project__customer=user)
+    recent_reports = recent_reports.order_by('-created_at')[:5]
+    
+    for report in recent_reports:
+        recent_activities.append({
+            'type': 'report',
+            'icon': 'fas fa-file-alt',
+            'color': 'primary',
+            'title': f'New Report - {report.project.name}',
+            'description': report.title,
+            'timestamp': report.created_at
+        })
+    
+    # Sort activities by timestamp
+    recent_activities.sort(key=lambda x: x['timestamp'], reverse=True)
+    recent_activities = recent_activities[:10]  # Limit to 10 most recent activities
+
     context = {
-        'title': 'Dashboard',
+        'customer_count': customer_count,
+        'active_projects_count': active_projects_count,
+        'todays_logs_count': todays_logs_count,
+        'reports_count': reports_count,
+        'active_projects': active_projects,
+        'recent_activities': recent_activities,
     }
 
-    if request.user.role == 'admin':
-        context.update({
-            'total_projects': Project.objects.count(),
-            'total_customers': Customer.objects.count(),
-            'total_logs': SEOLog.objects.count(),
-            'active_projects': Project.objects.filter(
-                is_active=True,
-                customer__is_active=True
-            ).count(),
-            'recent_logs': SEOLog.objects.filter(
-                project__is_active=True,
-                project__customer__is_active=True
-            ).order_by('-date')[:5],
-            'recent_projects': Project.objects.filter(
-                is_active=True,
-                customer__is_active=True
-            ).order_by('-created_at')[:5],
-        })
-        template = 'core/dashboard.html'
-    elif request.user.role == 'provider':
-        context.update({
-            'assigned_projects': Project.objects.filter(
-                providers=request.user,
-                is_active=True,
-                customer__is_active=True
-            ),
-            'recent_logs': SEOLog.objects.filter(
-                created_by=request.user,
-                project__is_active=True,
-                project__customer__is_active=True
-            ).order_by('-date')[:5],
-        })
-        template = 'core/dashboard.html'
-    else:  # customer
-        active_projects = Project.objects.filter(
-            customer__email=request.user.email,
-            is_active=True,
-            customer__is_active=True
-        )
-        context.update({
-            'active_projects_count': active_projects.count(),
-            'recent_reports_count': ReportSection.objects.filter(
-                project__in=active_projects
-            ).values('project').distinct().count(),
-            'seo_logs_count': SEOLog.objects.filter(
-                project__in=active_projects
-            ).count(),
-            'service_history': SEOLog.objects.filter(
-                project__in=active_projects
-            ).order_by('-date')[:10],
-            'notifications': Notification.objects.filter(
-                user=request.user,
-                is_read=False
-            ).order_by('-created_at')[:5],
-            'messages': [],  # Placeholder for message system
-        })
-        template = 'core/customer_dashboard.html'
-
-    return render(request, template, context)
+    return render(request, 'core/dashboard.html', context)
 
 def get_storage_used():
     """Calculate total storage used by media files"""
@@ -318,37 +373,45 @@ def report_create(request, project_pk):
                 report.created_by = request.user
                 report.save()
                 
-                # Create the report section
-                section = ReportSection.objects.create(
-                    project=project,
-                    title=form.cleaned_data['section_title'],
-                    content=form.cleaned_data['content'],
-                    priority=form.cleaned_data['priority']
-                )
+                # Get all section data
+                section_titles = request.POST.getlist('section_title[]')
+                section_priorities = request.POST.getlist('section_priority[]')
+                section_contents = request.POST.getlist('section_content[]')
+                section_files = request.FILES.getlist('section_attachments[]')
                 
-                # Add selected work logs
-                selected_logs = form.cleaned_data.get('selected_logs', [])
-                if selected_logs:
-                    section.seo_logs.set(selected_logs)
-                
-                # Handle attachments
-                attachments = request.FILES.getlist('attachments')
-                for file in attachments:
-                    attachment = ReportAttachment.objects.create(
-                        report_section=section,
-                        file=file,
-                        title=file.name,
-                        file_type=file.content_type,
-                        file_size=file.size
+                # Create sections
+                for i, title in enumerate(section_titles):
+                    # Create the report section
+                    section = ReportSection.objects.create(
+                        project=project,
+                        title=title,
+                        content=section_contents[i],
+                        priority=int(section_priorities[i])
                     )
-                
-                # Add section to report with proper order
-                ReportSectionOrder.objects.create(
-                    report=report,
-                    section=section,
-                    order=form.cleaned_data['priority'],
-                    page_break_before=True
-                )
+                    
+                    # Add selected work logs
+                    selected_logs = form.cleaned_data.get('selected_logs', [])
+                    if selected_logs:
+                        section.seo_logs.set(selected_logs)
+                    
+                    # Handle attachments for this section
+                    if i < len(section_files):
+                        file = section_files[i]
+                        attachment = ReportAttachment.objects.create(
+                            report_section=section,
+                            file=file,
+                            title=file.name,
+                            file_type=file.content_type,
+                            file_size=file.size
+                        )
+                    
+                    # Add section to report with proper order
+                    ReportSectionOrder.objects.create(
+                        report=report,
+                        section=section,
+                        order=int(section_priorities[i]),
+                        page_break_before=True
+                    )
                 
                 # Create initial version
                 ReportVersion.objects.create(
@@ -441,12 +504,12 @@ def report_section_add(request, report_pk):
     report = get_object_or_404(Report, pk=report_pk)
     
     if request.method == 'POST':
-        form = ReportSectionForm(request.POST)
+        form = ReportSectionForm(request.POST, request.FILES)
         if form.is_valid():
             section = form.save(commit=False)
             section.project = report.project
             section.save()
-            form.save_m2m()
+            form.save_m2m()  # Save many-to-many relationships
             
             # Add to report with next order number
             next_order = ReportSectionOrder.objects.filter(report=report).count() + 1
@@ -460,6 +523,8 @@ def report_section_add(request, report_pk):
             return redirect('report_edit', pk=report.pk)
     else:
         form = ReportSectionForm()
+        # Filter SEO logs based on project
+        form.fields['seo_logs'].queryset = SEOLog.objects.filter(project=report.project)
     
     return render(request, 'core/report_section_form.html', {
         'title': 'Add Section',
