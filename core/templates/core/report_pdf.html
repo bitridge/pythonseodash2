@@ -57,12 +57,18 @@
             page-break-inside: avoid;
         }
         .section-content {
-            margin-bottom: 0.5cm;
+            margin-bottom: 1cm;
+        }
+        .section-content img {
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 18cm !important;
+            object-fit: contain;
+            display: block;
+            margin: 0.5cm auto;
         }
         .section-images {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1cm;
+            width: 100%;
             margin: 1cm 0;
         }
         .section-image {
@@ -73,16 +79,19 @@
         }
         .section-image img {
             max-width: 100%;
+            max-height: 15cm;
+            width: auto;
             height: auto;
             object-fit: contain;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 0.3cm;
+            display: block;
+            margin: 0 auto;
+            page-break-inside: avoid;
         }
         .section-image .caption {
             font-size: 9pt;
             color: #666;
-            margin-top: 0.2cm;
+            margin-top: 0.3cm;
+            text-align: center;
         }
         .work-log {
             margin-bottom: 1cm;
@@ -109,28 +118,34 @@
             font-size: 9pt;
         }
         .work-log-content {
-            margin-bottom: 0.5cm;
+            margin: 0.5cm 0;
+        }
+        .work-log-content img {
+            max-width: 100% !important;
+            max-height: 15cm !important;
+            height: auto !important;
+            object-fit: contain;
+            display: block;
+            margin: 0.5cm auto;
         }
         .work-log-files {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5cm;
+            width: 100%;
             margin-top: 0.5cm;
         }
         .log-image {
             break-inside: avoid;
             text-align: center;
+            margin-bottom: 0.5cm;
         }
         .log-image img {
             max-width: 100%;
+            max-height: 12cm;
+            width: auto;
             height: auto;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 0.2cm;
-        }
-        .log-image .caption {
-            font-size: 9pt;
-            color: #666;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+            page-break-inside: avoid;
         }
         .section-logs {
             margin-bottom: 1cm;
@@ -194,7 +209,7 @@
     <div class="section{% if section.page_break_before %} page-break{% endif %}">
         <h2>{{ section.title }}</h2>
         <div class="section-content">
-            {{ section.content|safe }}
+            {{ section.content|safe|striptags }}
         </div>
 
         {% if section.attachments.exists %}
@@ -225,7 +240,7 @@
                     <span class="date">{{ log.date|date:"F j, Y" }}</span>
                 </div>
                 <div class="work-log-content">
-                    {{ log.description|safe }}
+                    {{ log.description|safe|striptags }}
                 </div>
                 {% if log.files.exists %}
                 <div class="work-log-files">

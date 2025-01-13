@@ -1,0 +1,67 @@
+# Cursor Rules
+# This file contains rules for the Cursor IDE to follow when working with this project
+
+# Python-specific rules
+*.py:
+  - max_line_length: 120
+  - indent_style: space
+  - indent_size: 4
+  - insert_final_newline: true
+  - trim_trailing_whitespace: true
+
+# JavaScript/TypeScript rules
+*.js:
+  - max_line_length: 100
+  - indent_style: space
+  - indent_size: 2
+  - insert_final_newline: true
+  - trim_trailing_whitespace: true
+
+*.ts:
+  - max_line_length: 100
+  - indent_style: space
+  - indent_size: 2
+  - insert_final_newline: true
+  - trim_trailing_whitespace: true
+
+# HTML/Template rules
+*.html:
+  - indent_style: space
+  - indent_size: 2
+  - insert_final_newline: true
+  - trim_trailing_whitespace: true
+
+# CSS/SCSS rules
+*.css:
+  - indent_style: space
+  - indent_size: 2
+  - insert_final_newline: true
+  - trim_trailing_whitespace: true
+
+*.scss:
+  - indent_style: space
+  - indent_size: 2
+  - insert_final_newline: true
+  - trim_trailing_whitespace: true
+
+# Markdown rules
+*.md:
+  - max_line_length: 80
+  - trim_trailing_whitespace: true
+
+# General rules
+*:
+  - charset: utf-8
+  - end_of_line: lf
+
+# Ignore rules
+ignore:
+  - .git/
+  - __pycache__/
+  - *.pyc
+  - node_modules/
+  - venv/
+  - .env
+  - media/
+  - static/
+  - migrations/ 
