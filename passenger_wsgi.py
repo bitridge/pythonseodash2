@@ -1,8 +1,12 @@
 import os
 import sys
-from django.core.wsgi import get_wsgi_application
 
+# Add the project directory to the Python path
 sys.path.insert(0, os.path.dirname(__file__))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
+# Set environment variables
+os.environ['DJANGO_SETTINGS_MODULE'] = 'seo_dashboard.settings'
+
+# Create the WSGI application
+from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application() 
