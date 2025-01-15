@@ -240,7 +240,7 @@
                     <span class="date">{{ log.date|date:"F j, Y" }}</span>
                 </div>
                 <div class="work-log-content">
-                    {{ log.description|safe|striptags }}
+                    {{ log.description|safe }}
                 </div>
                 {% if log.files.exists %}
                 <div class="work-log-files">

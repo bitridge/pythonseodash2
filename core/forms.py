@@ -50,10 +50,11 @@ class CustomerForm(forms.ModelForm):
 class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
-        fields = ['name', 'customer', 'description', 'providers', 'start_date', 'end_date', 'is_active']
+        fields = ['name', 'customer', 'url', 'description', 'providers', 'start_date', 'end_date', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'customer': forms.Select(attrs={'class': 'form-select'}),
+            'url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://example.com'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'providers': forms.SelectMultiple(attrs={'class': 'form-select'}),
             'start_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -99,7 +100,7 @@ class SEOLogForm(forms.ModelForm):
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'work_type': forms.Select(attrs={'class': 'form-select'}),
             'description': forms.Textarea(attrs={
-                'class': 'form-control summernote',
+                'class': 'form-control',
                 'rows': 4,
                 'placeholder': 'Enter work description'
             }),
@@ -177,6 +178,14 @@ class SEOLogForm(forms.ModelForm):
                         file_size=file.size
                     )
         return instance
+
+    def clean_description(self):
+        description = self.cleaned_data.get('description')
+        if description:
+            # Clean HTML tags from description
+            from django.utils.html import strip_tags
+            description = strip_tags(description)
+        return description
 
 class ReportForm(forms.ModelForm):
     title = forms.CharField(

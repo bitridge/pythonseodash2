@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import strip_tags
 import os
 from .utils import generate_unique_filename
 
@@ -38,6 +39,7 @@ class Project(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     description = models.TextField()
+    url = models.URLField(max_length=255, blank=True, help_text="Project website URL")
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
@@ -76,14 +78,9 @@ class SEOLog(models.Model):
         verbose_name_plural = 'SEO Logs'
 
     def save(self, *args, **kwargs):
-        # Convert old data format to new format if needed
-        if not self.description and hasattr(self, 'on_page_description'):
-            if self.on_page_work and self.on_page_description:
-                self.work_type = 'on_page'
-                self.description = self.on_page_description
-            elif self.off_page_work and self.off_page_description:
-                self.work_type = 'off_page'
-                self.description = self.off_page_description
+        # Clean HTML tags from description
+        if self.description:
+            self.description = strip_tags(self.description)
         super().save(*args, **kwargs)
 
 class SEOLogFile(models.Model):

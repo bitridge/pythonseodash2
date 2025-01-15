@@ -110,7 +110,7 @@
                                             <small class="text-muted">{{ log.date|date:"M d, Y" }}</small>
                                         </div>
                                     </div>
-                                    <p class="mb-1">{{ log.description }}</p>
+                                    <div class="mb-1">{{ log.description|safe }}</div>
                                 </div>
                                 {% endfor %}
                             </div>
