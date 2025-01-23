@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import strip_tags
+import bleach
 import os
 from .utils import generate_unique_filename
 
@@ -78,9 +79,33 @@ class SEOLog(models.Model):
         verbose_name_plural = 'SEO Logs'
 
     def save(self, *args, **kwargs):
-        # Clean HTML tags from description
         if self.description:
-            self.description = strip_tags(self.description)
+            # Define allowed tags and attributes
+            allowed_tags = [
+                'p', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'u',
+                'span', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br'
+            ]
+            allowed_attrs = {
+                '*': ['class', 'style'],
+                'span': ['style'],
+                'p': ['style'],
+                'td': ['colspan', 'rowspan'],
+                'th': ['colspan', 'rowspan']
+            }
+            allowed_styles = ['color', 'font-size', 'background-color', 'text-align']
+            
+            # Clean the HTML content using bleach
+            cleaned_html = bleach.clean(
+                self.description,
+                tags=allowed_tags,
+                attributes=allowed_attrs,
+                styles=allowed_styles,
+                strip=True
+            )
+            
+            # Linkify URLs in the content
+            self.description = bleach.linkify(cleaned_html)
+            
         super().save(*args, **kwargs)
 
 class SEOLogFile(models.Model):

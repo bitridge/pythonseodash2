@@ -113,12 +113,22 @@ $(document).ready(function() {
         toolbar: [
             ['style', ['style']],
             ['font', ['bold', 'underline', 'clear']],
+            ['fontsize', ['fontsize']],
             ['color', ['color']],
             ['para', ['ul', 'ol', 'paragraph']],
             ['table', ['table']],
-            ['insert', ['link']],
             ['view', ['fullscreen', 'codeview', 'help']]
-        ]
+        ],
+        styleTags: ['p', 'h4', 'h5', 'h6'],
+        fontSizes: ['8', '9', '10', '11', '12', '14', '16', '18', '24'],
+        callbacks: {
+            onPaste: function (e) {
+                // Strip all HTML tags except those we allow
+                var bufferText = ((e.originalEvent || e).clipboardData || window.clipboardData).getData('Text');
+                e.preventDefault();
+                document.execCommand('insertText', false, bufferText);
+            }
+        }
     });
 
     // Handle file preview

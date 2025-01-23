@@ -82,28 +82,29 @@ class ProjectForm(forms.ModelForm):
         return cleaned_data
 
 class SEOLogForm(forms.ModelForm):
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control summernote',
+            'rows': 4,
+            'placeholder': 'Enter work description'
+        })
+    )
     files = MultipleFileField(
         required=False,
         widget=MultipleFileInput(attrs={
-            'class': 'form-control file-input',
-            'accept': '.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx',
-            'data-browse-label': 'Browse Files',
-            'style': 'cursor: pointer;'
+            'class': 'form-control',
+            'accept': 'image/*,.pdf,.doc,.docx,.xls,.xlsx'
         })
     )
 
     class Meta:
         model = SEOLog
-        fields = ['project', 'date', 'work_type', 'description']
+        fields = ['project', 'date', 'work_type', 'description', 'providers']
         widgets = {
             'project': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'work_type': forms.Select(attrs={'class': 'form-select'}),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 4,
-                'placeholder': 'Enter work description'
-            }),
+            'providers': forms.SelectMultiple(attrs={'class': 'form-select'})
         }
 
     def __init__(self, *args, **kwargs):
@@ -178,14 +179,6 @@ class SEOLogForm(forms.ModelForm):
                         file_size=file.size
                     )
         return instance
-
-    def clean_description(self):
-        description = self.cleaned_data.get('description')
-        if description:
-            # Clean HTML tags from description
-            from django.utils.html import strip_tags
-            description = strip_tags(description)
-        return description
 
 class ReportForm(forms.ModelForm):
     title = forms.CharField(
