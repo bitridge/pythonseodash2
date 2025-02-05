@@ -1,96 +1,57 @@
 {% extends 'core/base.html' %}
-{% load static %}
+{% load crispy_forms_tags %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <h1 class="h3 mb-0">{{ title }}</h1>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>{{ title }}</h3>
                 </div>
                 <div class="card-body">
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {% for error in form.non_field_errors %}
-                                {{ error }}
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-
-                    <form method="post" novalidate>
+                    <form method="post">
                         {% csrf_token %}
                         
-                        <div class="row">
-                            <div class="col-md-6">
+                        {% for field in form %}
+                            {% if field.name != 'password' and field.name != 'confirm_password' %}
                                 <div class="mb-3">
-                                    <label class="form-label">Username</label>
-                                    {{ form.username }}
-                                    {% if form.username.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.username.errors }}
-                                    </div>
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="alert alert-danger">
+                                            {{ field.errors }}
+                                        </div>
                                     {% endif %}
                                 </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Email</label>
-                                    {{ form.email }}
-                                    {% if form.email.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.email.errors }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                            {% endif %}
+                        {% endfor %}
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">First Name</label>
-                                    {{ form.first_name }}
-                                    {% if form.first_name.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.first_name.errors }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Last Name</label>
-                                    {{ form.last_name }}
-                                    {% if form.last_name.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {{ form.last_name.errors }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
+                        <!-- Password Fields with Generator -->
                         <div class="mb-3">
-                            <label class="form-label">Role</label>
-                            {{ form.role }}
-                            {% if form.role.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ form.role.errors }}
+                            {{ form.password.label_tag }}
+                            <div class="input-group">
+                                {{ form.password }}
+                                <button type="button" class="btn btn-secondary" id="generatePassword">
+                                    Generate Password
+                                </button>
                             </div>
+                            {% if form.password.help_text %}
+                                <small class="form-text text-muted">{{ form.password.help_text }}</small>
                             {% endif %}
                         </div>
 
-                        {% if not user_obj %}
                         <div class="mb-3">
-                            <label class="form-label">Password</label>
-                            <input type="password" name="password" class="form-control" required>
+                            {{ form.confirm_password.label_tag }}
+                            {{ form.confirm_password }}
                         </div>
-                        {% endif %}
 
-                        <div class="text-end">
+                        <div class="mb-3">
+                            <button type="submit" class="btn btn-primary">Save</button>
                             <a href="{% url 'user_list' %}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Save User</button>
                         </div>
                     </form>
                 </div>
@@ -98,4 +59,28 @@
         </div>
     </div>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generatePassword(length = 12) {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        password += charset[randomIndex];
+    }
+    return password;
+}
+
+document.getElementById('generatePassword').addEventListener('click', function() {
+    const password = generatePassword();
+    document.getElementById('id_password_field').value = password;
+    document.getElementById('id_confirm_password_field').value = password;
+    
+    // Optional: Show a toast or alert with the generated password
+    alert('Generated password: ' + password + '\nPlease save this password securely.');
+});
+</script>
 {% endblock %} 

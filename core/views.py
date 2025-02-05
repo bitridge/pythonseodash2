@@ -939,9 +939,14 @@ def user_add(request):
         form = CustomUserForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.set_password(form.cleaned_data['password'])
+            # Set a default password if not provided
+            password = form.cleaned_data.get('password', None)
+            if password:
+                user.set_password(password)
+            else:
+                user.set_password('changeme123')  # Default password
             user.save()
-            messages.success(request, 'User added successfully.')
+            messages.success(request, 'User added successfully. Default password is "changeme123" if none was provided.')
             return redirect('user_list')
     else:
         form = CustomUserForm()

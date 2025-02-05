@@ -26,15 +26,52 @@ class MultipleFileField(forms.FileField):
         return result
 
 class CustomUserForm(forms.ModelForm):
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'id': 'id_password_field'
+        }), 
+        required=False, 
+        help_text='Leave empty to use default password'
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'id': 'id_confirm_password_field'
+        }), 
+        required=False
+    )
+
     class Meta:
         model = CustomUser
-        fields = ['username', 'email', 'first_name', 'last_name', 'role']
+        fields = ['username', 'email', 'first_name', 'last_name', 'role', 'is_active']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'role': forms.Select(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'})
+        }
 
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        if user and user.role != 'admin':
+        if not self.instance.pk:  # If creating new user
+            self.fields['password'].required = True
+            self.fields['confirm_password'].required = True
+        if self.user and self.user.role != 'admin':
             self.fields.pop('role', None)  # Remove role field for non-admin users
+
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+
+        if password and confirm_password and password != confirm_password:
+            raise forms.ValidationError("Passwords do not match")
+        
+        return cleaned_data
 
 class CustomerForm(forms.ModelForm):
     class Meta:
