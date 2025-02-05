@@ -5,10 +5,11 @@ services:
     build: .
     command: gunicorn seo_work_log.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 4
     volumes:
+      - .:/app
       - static_volume:/app/static
       - media_volume:/app/media
-    expose:
-      - 8000
+    ports:
+      - "8000:8000"
     environment:
       - DJANGO_SETTINGS_MODULE=seo_work_log.settings
       - MYSQL_DATABASE=${MYSQL_DATABASE}
@@ -18,21 +19,6 @@ services:
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
-
-  nginx:
-    image: nginx:1.25
-    volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - static_volume:/app/static
-      - media_volume:/app/media
-      - /etc/nginx/ssl-certificates:/etc/nginx/ssl-certificates:ro
-      - /home/seodashboard/logs/nginx:/var/log/nginx
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    depends_on:
-      - web
 
 volumes:
   static_volume:
