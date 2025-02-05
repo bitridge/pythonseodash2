@@ -71,23 +71,32 @@ def dashboard(request):
                 project.progress = 0
     
     else:  # customer
-        customer_count = 1  # themselves
-        active_projects_count = Project.objects.filter(customer=user, is_active=True).count()
-        todays_logs_count = SEOLog.objects.filter(project__customer=user, date=today).count()
-        reports_count = Report.objects.filter(project__customer=user).count()
-        
-        # Get customer's active projects with progress
-        active_projects = Project.objects.filter(customer=user, is_active=True)[:5]
-        for project in active_projects:
-            total_logs = SEOLog.objects.filter(project=project).count()
-            if total_logs > 0:
-                completed_logs = SEOLog.objects.filter(
-                    project=project,
-                    work_type__in=['completed', 'published']
-                ).count()
-                project.progress = int((completed_logs / total_logs) * 100)
-            else:
-                project.progress = 0
+        try:
+            customer = Customer.objects.get(email=user.email)
+            customer_count = 1  # themselves
+            active_projects_count = Project.objects.filter(customer=customer, is_active=True).count()
+            todays_logs_count = SEOLog.objects.filter(project__customer=customer, date=today).count()
+            reports_count = Report.objects.filter(project__customer=customer).count()
+            
+            # Get customer's active projects with progress
+            active_projects = Project.objects.filter(customer=customer, is_active=True)[:5]
+            for project in active_projects:
+                total_logs = SEOLog.objects.filter(project=project).count()
+                if total_logs > 0:
+                    completed_logs = SEOLog.objects.filter(
+                        project=project,
+                        work_type__in=['completed', 'published']
+                    ).count()
+                    project.progress = int((completed_logs / total_logs) * 100)
+                else:
+                    project.progress = 0
+        except Customer.DoesNotExist:
+            messages.error(request, "No customer profile found for your account. Please contact an administrator.")
+            customer_count = 0
+            active_projects_count = 0
+            todays_logs_count = 0
+            reports_count = 0
+            active_projects = []
 
     # Get recent activities
     recent_activities = []
@@ -97,7 +106,11 @@ def dashboard(request):
     if user.role == 'provider':
         recent_logs = recent_logs.filter(created_by=user)
     elif user.role == 'customer':
-        recent_logs = recent_logs.filter(project__customer=user)
+        try:
+            customer = Customer.objects.get(email=user.email)
+            recent_logs = recent_logs.filter(project__customer=customer)
+        except Customer.DoesNotExist:
+            recent_logs = SEOLog.objects.none()
     recent_logs = recent_logs.order_by('-date')[:5]
     
     for log in recent_logs:
@@ -118,7 +131,11 @@ def dashboard(request):
     if user.role == 'provider':
         recent_reports = recent_reports.filter(created_by=user)
     elif user.role == 'customer':
-        recent_reports = recent_reports.filter(project__customer=user)
+        try:
+            customer = Customer.objects.get(email=user.email)
+            recent_reports = recent_reports.filter(project__customer=customer)
+        except Customer.DoesNotExist:
+            recent_reports = Report.objects.none()
     recent_reports = recent_reports.order_by('-created_at')[:5]
     
     for report in recent_reports:
