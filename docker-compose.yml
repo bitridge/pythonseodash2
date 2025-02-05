@@ -1,13 +1,13 @@
 services:
   web:
     build: .
-    command: gunicorn seo_work_log.wsgi:application --bind 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8090
     volumes:
       - .:/app
       - static_volume:/app/static
       - media_volume:/app/media
     ports:
-      - "8000:8000"
+      - "8090:8090"
     environment:
       - DJANGO_SETTINGS_MODULE=seo_work_log.settings
       - MYSQL_DATABASE=seo_work_log
