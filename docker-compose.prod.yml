@@ -8,8 +8,7 @@ services:
       - .:/app
       - static_volume:/app/static
       - media_volume:/app/media
-    ports:
-      - "8090:8090"
+    network_mode: "host"
     environment:
       - DJANGO_SETTINGS_MODULE=seo_work_log.settings
       - MYSQL_DATABASE=${MYSQL_DATABASE}
