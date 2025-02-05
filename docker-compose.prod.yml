@@ -11,27 +11,13 @@ services:
       - 8000
     environment:
       - DJANGO_SETTINGS_MODULE=seo_work_log.settings
-      - MYSQL_DATABASE=seo_work_log
-      - MYSQL_USER=seo_user
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_HOST=db
+      - MYSQL_HOST=${MYSQL_HOST}
       - DEBUG=0
       - SECRET_KEY=${SECRET_KEY}
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
-    depends_on:
-      - db
-
-  db:
-    image: mysql:8.0
-    volumes:
-      - mysql_data:/var/lib/mysql
-    environment:
-      - MYSQL_DATABASE=seo_work_log
-      - MYSQL_USER=seo_user
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-    ports:
-      - "3306:3306"
 
   nginx:
     image: nginx:1.25
@@ -49,6 +35,5 @@ services:
       - web
 
 volumes:
-  mysql_data:
   static_volume:
   media_volume: 
