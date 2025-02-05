@@ -86,11 +86,15 @@ WSGI_APPLICATION = 'seo_work_log.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('MYSQL_DATABASE', 'seo_work_log'),
+        'NAME': os.getenv('MYSQL_DATABASE', 'technotch_seodashboard'),
         'USER': os.getenv('MYSQL_USER', 'technotch_dba'),
         'PASSWORD': os.getenv('MYSQL_PASSWORD', 'Ug8$ZilXDY9o'),
         'HOST': os.getenv('MYSQL_HOST', 'atlshared5.ramnode.com'),
         'PORT': os.getenv('MYSQL_PORT', '3306'),
+        'OPTIONS': {
+            'ssl_mode': os.getenv('MYSQL_SSL_MODE', 'DISABLED'),
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
     }
 }
 
