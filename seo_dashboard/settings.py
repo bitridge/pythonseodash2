@@ -60,10 +60,10 @@ WSGI_APPLICATION = 'seo_dashboard.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'technotch_seodash'),
-        'USER': os.environ.get('DB_USER', 'technotch_seodash'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'NAME': os.getenv('MYSQL_DATABASE', 'seo_work_log'),
+        'USER': os.getenv('MYSQL_USER', 'technotch_dba'),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD', 'Ug8$ZilXDY9o'),
+        'HOST': os.getenv('MYSQL_HOST', 'atlshared5.ramnode.com'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",

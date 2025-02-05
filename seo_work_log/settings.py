@@ -87,9 +87,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('MYSQL_DATABASE', 'seo_work_log'),
-        'USER': os.getenv('MYSQL_USER', 'seo_user'),
-        'PASSWORD': os.getenv('MYSQL_PASSWORD', 'seo_password'),
-        'HOST': os.getenv('MYSQL_HOST', 'db'),
+        'USER': os.getenv('MYSQL_USER', 'technotch_dba'),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD', 'Ug8$ZilXDY9o'),
+        'HOST': os.getenv('MYSQL_HOST', 'atlshared5.ramnode.com'),
         'PORT': os.getenv('MYSQL_PORT', '3306'),
     }
 }
