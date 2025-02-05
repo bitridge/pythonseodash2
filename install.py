@@ -35,8 +35,42 @@ class SetupWizard:
                 import shutil
                 shutil.rmtree(str(self.venv_dir))
             
-            # Create new virtual environment
-            subprocess.run([sys.executable, '-m', 'venv', str(self.venv_dir)], check=True)
+            # Try creating virtualenv using alternative methods
+            methods = [
+                # Method 1: Standard venv with system packages
+                lambda: subprocess.run([sys.executable, '-m', 'venv', '--system-site-packages', str(self.venv_dir)], check=True),
+                # Method 2: Standard venv without system packages
+                lambda: subprocess.run([sys.executable, '-m', 'venv', str(self.venv_dir)], check=True),
+                # Method 3: Using virtualenv if available
+                lambda: subprocess.run(['virtualenv', str(self.venv_dir)], check=True),
+            ]
+            
+            success = False
+            for method in methods:
+                try:
+                    print("Attempting to create virtual environment...")
+                    method()
+                    success = True
+                    break
+                except subprocess.CalledProcessError:
+                    continue
+                except FileNotFoundError:
+                    continue
+            
+            if not success:
+                print("\nAll virtual environment creation methods failed.")
+                print("Attempting to install virtualenv...")
+                try:
+                    # Try to install virtualenv
+                    subprocess.run([sys.executable, '-m', 'pip', 'install', '--user', 'virtualenv'], check=True)
+                    subprocess.run(['virtualenv', str(self.venv_dir)], check=True)
+                    success = True
+                except subprocess.CalledProcessError as e:
+                    print(f"Error installing virtualenv: {e}")
+                    print("\nPlease try the following steps manually:")
+                    print("1. python3 -m pip install --user virtualenv")
+                    print("2. python3 -m virtualenv venv")
+                    return False
             
             # Set the correct pip and python paths
             if os.name == 'nt':  # Windows
@@ -54,14 +88,29 @@ class SetupWizard:
             
             # Upgrade pip
             print("Upgrading pip...")
-            subprocess.run([str(self.python_path), '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
+            try:
+                subprocess.run([str(self.python_path), '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
+            except subprocess.CalledProcessError:
+                print("Warning: Failed to upgrade pip, continuing with installation...")
             
             return True
+            
         except subprocess.CalledProcessError as e:
             print(f"Error creating virtual environment: {e}")
+            print("\nTroubleshooting steps:")
+            print("1. Try installing virtualenv:")
+            print("   python3 -m pip install --user virtualenv")
+            print("2. Create virtual environment manually:")
+            print("   python3 -m virtualenv venv")
+            print("3. If the above fails, try:")
+            print("   sudo apt-get update")
+            print("   sudo apt-get install python3-venv python3-dev")
             return False
         except Exception as e:
             print(f"Unexpected error creating virtual environment: {e}")
+            print("\nPlease try creating the virtual environment manually:")
+            print("python3 -m pip install --user virtualenv")
+            print("python3 -m virtualenv venv")
             return False
 
     def install_requirements(self):
