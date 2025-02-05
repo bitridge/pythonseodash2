@@ -92,7 +92,6 @@ DATABASES = {
         'HOST': os.getenv('MYSQL_HOST', 'atlshared5.ramnode.com'),
         'PORT': os.getenv('MYSQL_PORT', '3306'),
         'OPTIONS': {
-            'ssl_mode': 'DISABLED',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'connect_timeout': 60,
         }
