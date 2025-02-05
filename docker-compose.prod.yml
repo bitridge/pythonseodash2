@@ -3,13 +3,13 @@ version: '3.8'
 services:
   web:
     build: .
-    command: gunicorn seo_work_log.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 4
+    command: gunicorn seo_work_log.wsgi:application --bind 0.0.0.0:8090 --workers 4 --threads 4
     volumes:
       - .:/app
       - static_volume:/app/static
       - media_volume:/app/media
     ports:
-      - "8000:8000"
+      - "8090:8090"
     environment:
       - DJANGO_SETTINGS_MODULE=seo_work_log.settings
       - MYSQL_DATABASE=${MYSQL_DATABASE}
