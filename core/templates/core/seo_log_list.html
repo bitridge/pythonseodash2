@@ -33,7 +33,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Type</label>
                             <select name="type" class="form-select">
                                 <option value="">All Types</option>
@@ -44,7 +44,18 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Provider</label>
+                            <select name="provider" class="form-select">
+                                <option value="">All Providers</option>
+                                {% for provider in providers %}
+                                <option value="{{ provider.id }}" {% if request.GET.provider|add:"0" == provider.id %}selected{% endif %}>
+                                    {{ provider.get_full_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <label class="form-label">Date Range</label>
                             <select name="date" class="form-select">
                                 <option value="">All Time</option>
@@ -78,6 +89,7 @@
                                     <th>Work Type</th>
                                     <th>Description</th>
                                     <th>Files</th>
+                                    <th>Provider</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -87,7 +99,7 @@
                                     <td>{{ log.date|date:"M d, Y" }}</td>
                                     <td>{{ log.project.name }}</td>
                                     <td>{{ log.get_work_type_display }}</td>
-                                    <td>{{ log.description|linebreaks }}</td>
+                                    <td>{{ log.description|safe }}</td>
                                     <td>
                                         {% if log.files.exists %}
                                         <div class="d-flex flex-wrap gap-2">
@@ -109,6 +121,7 @@
                                         </div>
                                         {% endif %}
                                     </td>
+                                    <td>{{ log.created_by.get_full_name }}</td>
                                     <td>
                                         <div class="btn-group">
                                             <a href="{% url 'seo_log_detail' pk=log.pk %}" class="btn btn-sm btn-outline-primary">

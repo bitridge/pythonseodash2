@@ -4,6 +4,7 @@
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css" rel="stylesheet">
 <style>
     .section-container {
         border: 1px solid #dee2e6;
@@ -14,191 +15,241 @@
         background-color: #f8f9fa;
         padding: 1rem;
         cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
     }
     .section-content {
         padding: 1rem;
     }
-    .section-preview img {
-        max-width: 100px;
-        height: auto;
-        margin: 0.5rem;
-    }
-    .collapsed .section-content {
-        display: none;
-    }
-    .priority-badge {
-        background-color: #6c757d;
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
-    }
-    /* Enhanced SEO Logs Selection styles */
-    .seo-logs-section {
-        border: 2px solid #007bff;
-        border-radius: 0.5rem;
-        padding: 1.5rem;
-        margin: 2rem 0;
+    .log-table th {
         background-color: #f8f9fa;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .seo-logs-section h4 {
-        color: #007bff;
-        margin-bottom: 1.5rem;
-        font-size: 1.5rem;
-    }
-    .seo-logs-section .form-check-input {
-        width: 1.5rem !important;
-        height: 1.5rem !important;
-        cursor: pointer;
-        margin-top: 0.25rem;
-    }
-    .seo-logs-section .table {
-        background-color: white;
-        border-radius: 0.5rem;
-        border: 1px solid #dee2e6;
-    }
-    .seo-logs-section .table th {
-        background-color: #e9ecef;
-        padding: 1rem;
-        font-weight: 600;
         border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
     }
-    .seo-logs-section .table td {
-        padding: 1rem;
+    .log-description {
+        max-height: 100px;
+        overflow-y: auto;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .form-grid-full {
+        grid-column: 1 / -1;
+    }
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 0.5rem 0.75rem;
+    }
+    .form-control:focus {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .table {
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .table td {
         vertical-align: middle;
         border-bottom: 1px solid #dee2e6;
     }
-    .seo-logs-section .table tr:hover {
-        background-color: #e9ecef;
-    }
-    .seo-logs-section .table tr:last-child td {
+    .table tr:last-child td {
         border-bottom: none;
     }
-    #selectAllLogs {
-        width: 1.5rem !important;
-        height: 1.5rem !important;
+    .custom-checkbox {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #dee2e6;
+        border-radius: 4px;
         cursor: pointer;
+        position: relative;
     }
-    .error-message {
-        color: #dc3545;
-        font-size: 0.875rem;
-        margin-top: 0.25rem;
+    .custom-checkbox:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
     }
-    .form-errors {
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-        border-radius: 0.25rem;
-        color: #721c24;
-        padding: 1rem;
-        margin-bottom: 1rem;
+    .custom-checkbox:checked::after {
+        content: '✓';
+        color: white;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 12px;
     }
-    .form-errors ul {
-        margin-bottom: 0;
-        padding-left: 1.25rem;
-    }
-    .log-checkbox-wrapper {
+    .log-files-preview {
         display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
         justify-content: center;
+    }
+    .log-file-thumbnail {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        object-fit: cover;
+        border: 1px solid #dee2e6;
+        transition: transform 0.2s;
+    }
+    .log-file-thumbnail:hover {
+        transform: scale(1.1);
+        border-color: #0d6efd;
+    }
+    .log-file-link {
+        display: inline-flex;
         align-items: center;
-        height: 100%;
+        padding: 0.25rem 0.5rem;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        color: #495057;
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+    .log-file-link:hover {
+        background-color: #e9ecef;
+        border-color: #0d6efd;
+        color: #0d6efd;
+        text-decoration: none;
+    }
+    .log-file-link i {
+        margin-right: 0.5rem;
+        font-size: 1rem;
+    }
+    .log-file-name {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .log-row {
+        transition: background-color 0.2s;
+    }
+    .log-row:hover {
+        background-color: #f8f9fa;
+    }
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 500;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
     <div class="row">
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h2>Generate Report - {{ project.name }}</h2>
+                    <h2 class="mb-0">Generate Report - {{ project.name }}</h2>
                     <div>
                         <button type="button" class="btn btn-primary me-2" id="previewReport">
-                            <i class="fas fa-eye me-2"></i>Preview Report
+                            <i class="fas fa-eye"></i> Preview
                         </button>
                         <button type="submit" form="reportForm" class="btn btn-success">
-                            <i class="fas fa-file-pdf me-2"></i>Generate PDF Report
+                            <i class="fas fa-save"></i> Save Report
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if form.errors %}
-                    <div class="alert alert-danger">
-                        <h5>Please correct the following errors:</h5>
-                        <ul>
-                            {% for field, errors in form.errors.items %}
-                            <li>{{ field }}: {{ errors|join:", " }}</li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-
                     <form id="reportForm" method="post" action="{% url 'report_create' project.pk %}" enctype="multipart/form-data">
                         {% csrf_token %}
                         
                         <!-- Report Basic Info -->
                         <div class="mb-4">
-                            <h4>Report Information</h4>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">{{ form.title.label }}</label>
-                                        {{ form.title }}
-                                        {% if form.title.errors %}
-                                        <div class="error-message">{{ form.title.errors }}</div>
-                                        {% endif %}
-                                    </div>
+                            <h4 class="mb-3">Report Information</h4>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">{{ form.title.label }}</label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.title.errors }}</div>
+                                    {% endif %}
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">{{ form.description.label }}</label>
-                                        {{ form.description }}
-                                        {% if form.description.errors %}
-                                        <div class="error-message">{{ form.description.errors }}</div>
-                                        {% endif %}
-                                    </div>
+                                <div class="form-group">
+                                    <label class="form-label">{{ form.description.label }}</label>
+                                    {{ form.description }}
+                                    {% if form.description.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.description.errors }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
 
                         <!-- SEO Logs Selection -->
-                        <div class="mb-4 seo-logs-section">
-                            <h4><i class="fas fa-tasks me-2"></i>Select SEO Logs</h4>
-                            {% if form.selected_logs.errors %}
-                            <div class="alert alert-danger mb-3">
-                                {{ form.selected_logs.errors }}
-                            </div>
-                            {% endif %}
+                        <div class="mb-4">
+                            <h4 class="mb-3">Select SEO Logs</h4>
                             <div class="table-responsive">
-                                <table class="table">
+                                <table class="table table-hover">
                                     <thead>
                                         <tr>
-                                            <th style="width: 80px;">
-                                                <div class="log-checkbox-wrapper">
-                                                    <input type="checkbox" class="form-check-input" id="selectAllLogs">
-                                                </div>
+                                            <th style="width: 50px;" class="text-center">
+                                                <input type="checkbox" class="custom-checkbox" id="selectAllLogs">
                                             </th>
-                                            <th style="width: 150px;">Date</th>
-                                            <th style="width: 200px;">Work Type</th>
-                                            <th>Description</th>
+                                            <th style="width: 120px;">DATE</th>
+                                            <th style="width: 150px;">TYPE</th>
+                                            <th>DESCRIPTION</th>
+                                            <th style="width: 200px;" class="text-center">FILES</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for log in form.selected_logs.field.queryset %}
-                                        <tr>
+                                        <tr class="log-row">
+                                            <td class="text-center">
+                                                <input type="checkbox" name="selected_logs" value="{{ log.id }}" 
+                                                       class="custom-checkbox log-checkbox">
+                                            </td>
+                                            <td>{{ log.date|date:"M d, Y" }}</td>
+                                            <td>{{ log.get_work_type_display }}</td>
                                             <td>
-                                                <div class="log-checkbox-wrapper">
-                                                    <input type="checkbox" name="selected_logs" value="{{ log.id }}" 
-                                                           class="form-check-input log-checkbox">
+                                                <div class="log-description">
+                                                    {{ log.description|safe }}
                                                 </div>
                                             </td>
-                                            <td>{{ log.date }}</td>
-                                            <td><span class="badge bg-primary">{{ log.get_work_type_display }}</span></td>
-                                            <td>{{ log.description|truncatechars:100 }}</td>
+                                            <td>
+                                                {% if log.files.exists %}
+                                                <div class="log-files-preview">
+                                                    {% for file in log.files.all %}
+                                                        {% if file.file_type == 'image' %}
+                                                            <a href="{{ file.file.url }}" 
+                                                               data-lightbox="log-images-{{ log.id }}"
+                                                               data-title="{{ file.file_name }}"
+                                                               data-bs-toggle="tooltip" 
+                                                               title="{{ file.file_name }}">
+                                                                <img src="{{ file.file.url }}" 
+                                                                     alt="{{ file.file_name }}" 
+                                                                     class="log-file-thumbnail">
+                                                            </a>
+                                                        {% else %}
+                                                            <a href="{{ file.file.url }}" 
+                                                               class="log-file-link"
+                                                               target="_blank"
+                                                               data-bs-toggle="tooltip" 
+                                                               title="{{ file.file_name }}">
+                                                                {% if file.file_type == 'pdf' %}
+                                                                    <i class="fas fa-file-pdf text-danger"></i>
+                                                                {% elif file.file_type == 'document' %}
+                                                                    <i class="fas fa-file-word text-primary"></i>
+                                                                {% elif file.file_type == 'spreadsheet' %}
+                                                                    <i class="fas fa-file-excel text-success"></i>
+                                                                {% else %}
+                                                                    <i class="fas fa-file-alt text-secondary"></i>
+                                                                {% endif %}
+                                                                <span class="log-file-name">{{ file.file_name }}</span>
+                                                            </a>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <span class="badge bg-secondary">No files</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -209,19 +260,14 @@
                         <!-- Report Sections -->
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h4>Report Sections</h4>
+                                <h4 class="mb-0">Report Sections</h4>
                                 <button type="button" class="btn btn-primary" id="addSection">
-                                    <i class="fas fa-plus me-2"></i>Add Section
+                                    <i class="fas fa-plus"></i> Add Section
                                 </button>
                             </div>
                             <div id="sectionContainer">
                                 <!-- Sections will be added here dynamically -->
                             </div>
-                        </div>
-
-                        <div class="text-end">
-                            <a href="{% url 'project_detail' project.pk %}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">Create Report</button>
                         </div>
                     </form>
                 </div>
@@ -232,83 +278,98 @@
 
 <!-- Section Template -->
 <template id="sectionTemplate">
-    <div class="section-container" data-section-id="__SECTION_ID__">
-        <div class="section-header" onclick="toggleSection(this)">
+    <div class="section-container mb-3">
+        <div class="section-header d-flex justify-content-between align-items-center">
             <div>
-                <i class="fas fa-chevron-down me-2"></i>
+                <i class="fas fa-grip-vertical me-2"></i>
                 <span class="section-title">Section __SECTION_NUMBER__</span>
             </div>
             <div>
-                <span class="priority-badge">Priority: __PRIORITY__</span>
-                <button type="button" class="btn btn-sm btn-danger ms-2" onclick="removeSection(this)">
-                    <i class="fas fa-trash"></i>
+                <span class="badge bg-primary me-2">Priority: __PRIORITY__</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeSection(this)">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
         <div class="section-content">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Section Title</label>
-                        <input type="text" name="section_title[]" class="form-control" required>
-                    </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Section Title</label>
+                    <input type="text" name="section_title[]" class="form-control" required>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label class="form-label">Priority</label>
-                        <input type="number" name="section_priority[]" class="form-control" value="__PRIORITY__" min="1" required>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <input type="number" name="section_priority[]" class="form-control" value="__PRIORITY__" min="1" required>
                 </div>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Content</label>
-                <textarea name="section_content[]" class="form-control summernote" rows="4" required></textarea>
-            </div>
-            <div class="mb-3">
-                <label class="form-label">Attachments</label>
-                <input type="file" name="section_attachments[]" class="form-control" multiple 
-                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
-                <div class="section-preview mt-2"></div>
+                <div class="form-group form-grid-full">
+                    <label class="form-label">Content</label>
+                    <textarea name="section_content[]" class="form-control summernote" rows="4" required></textarea>
+                </div>
+                <div class="form-group form-grid-full">
+                    <label class="form-label">Attachments</label>
+                    <input type="file" name="section_attachments[]" class="form-control" multiple 
+                           accept="image/*,.pdf,.doc,.docx,.xls,.xlsx">
+                    <div class="section-preview mt-2"></div>
+                </div>
             </div>
         </div>
     </div>
 </template>
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
 <script>
 $(document).ready(function() {
-    let sectionCount = 0;
-
-    // Initialize Select2
-    $('.select2').select2();
-
-    // Initialize first section
-    addSection();
-
-    // Handle "Add Section" button
-    $('#addSection').click(function() {
-        addSection();
+    // Initialize Summernote
+    $('.summernote').summernote({
+        height: 200,
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'underline', 'clear']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link']],
+            ['view', ['fullscreen', 'codeview', 'help']]
+        ]
     });
 
-    // Handle "Select All" for logs
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
+
+    // Custom checkbox styling
+    $('.custom-checkbox').on('change', function() {
+        $(this).toggleClass('checked', this.checked);
+    });
+
+    // Handle "Select All" for logs with custom styling
     $('#selectAllLogs').change(function() {
-        $('.log-checkbox').prop('checked', $(this).prop('checked'));
+        const isChecked = $(this).prop('checked');
+        $('.log-checkbox').prop('checked', isChecked).each(function() {
+            $(this).toggleClass('checked', isChecked);
+        });
     });
 
-    function addSection() {
-        sectionCount++;
-        const template = document.getElementById('sectionTemplate').innerHTML
-            .replace(/__SECTION_ID__/g, sectionCount)
+    // Add new section
+    $('#addSection').click(function() {
+        const template = document.getElementById('sectionTemplate');
+        const container = document.getElementById('sectionContainer');
+        const sectionCount = container.children.length + 1;
+        
+        let content = template.innerHTML
             .replace(/__SECTION_NUMBER__/g, sectionCount)
             .replace(/__PRIORITY__/g, sectionCount);
-
-        $('#sectionContainer').append(template);
-
-        // Initialize Summernote for the new section
-        $(`[data-section-id="${sectionCount}"] .summernote`).summernote({
+            
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        container.appendChild(tempDiv.firstElementChild);
+        
+        // Initialize Summernote for new section
+        $(container.lastElementChild).find('.summernote').summernote({
             height: 200,
             toolbar: [
                 ['style', ['style']],
@@ -316,60 +377,25 @@ $(document).ready(function() {
                 ['color', ['color']],
                 ['para', ['ul', 'ol', 'paragraph']],
                 ['table', ['table']],
-                ['insert', ['link', 'picture']],
+                ['insert', ['link']],
                 ['view', ['fullscreen', 'codeview', 'help']]
-            ],
-            callbacks: {
-                onImageUpload: function(files) {
-                    for(let file of files) {
-                        if(file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                                const img = document.createElement('img');
-                                img.src = reader.result;
-                                $(this).summernote('insertNode', img);
-                            };
-                            reader.readAsDataURL(file);
-                        }
-                    }
-                }
-            }
+            ]
         });
+    });
 
-        // Handle file preview
-        $(`[data-section-id="${sectionCount}"] input[type="file"]`).change(function(e) {
-            const preview = $(this).siblings('.section-preview');
-            preview.empty();
-            
-            for(let file of e.target.files) {
-                if(file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        preview.append(`<img src="${reader.result}" alt="${file.name}">`);
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    preview.append(`<div><i class="fas fa-file me-2"></i>${file.name}</div>`);
-                }
-            }
-        });
-
-        // Collapse previous sections
-        if(sectionCount > 1) {
-            $(`.section-container[data-section-id="${sectionCount-1}"]`).addClass('collapsed');
-        }
-    }
+    // Initialize Lightbox
+    lightbox.option({
+        'resizeDuration': 200,
+        'wrapAround': true,
+        'albumLabel': 'Image %1 of %2',
+        'fadeDuration': 300,
+        'imageFadeDuration': 300,
+        'positionFromTop': 100
+    });
 });
 
-function toggleSection(header) {
-    $(header).closest('.section-container').toggleClass('collapsed');
-    $(header).find('.fas').toggleClass('fa-chevron-down fa-chevron-right');
-}
-
 function removeSection(button) {
-    if(confirm('Are you sure you want to remove this section?')) {
-        $(button).closest('.section-container').remove();
-    }
+    $(button).closest('.section-container').remove();
 }
 </script>
 {% endblock %} 

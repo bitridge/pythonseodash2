@@ -86,20 +86,18 @@ class SEOLog(models.Model):
                 'span', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br'
             ]
             allowed_attrs = {
-                '*': ['class', 'style'],
+                '*': ['class'],
                 'span': ['style'],
                 'p': ['style'],
                 'td': ['colspan', 'rowspan'],
                 'th': ['colspan', 'rowspan']
             }
-            allowed_styles = ['color', 'font-size', 'background-color', 'text-align']
             
             # Clean the HTML content using bleach
             cleaned_html = bleach.clean(
                 self.description,
                 tags=allowed_tags,
                 attributes=allowed_attrs,
-                styles=allowed_styles,
                 strip=True
             )
             

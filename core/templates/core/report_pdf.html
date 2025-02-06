@@ -218,7 +218,6 @@
             {% if attachment.file_type == 'image' %}
             <div class="section-image">
                 <img src="{{ attachment.file.url }}" alt="{{ attachment.title }}">
-                <div class="caption">{{ attachment.title }}</div>
             </div>
             {% endif %}
             {% endfor %}
@@ -248,7 +247,6 @@
                     {% if file.file_type == 'image' %}
                     <div class="log-image">
                         <img src="{{ file.file.url }}" alt="{{ file.title }}">
-                        <div class="caption">{{ file.title }}</div>
                     </div>
                     {% endif %}
                     {% endfor %}

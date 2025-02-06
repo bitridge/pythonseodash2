@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.conf import settings
 from weasyprint import HTML
 from django.contrib.auth import login, logout, authenticate
+from django.utils.html import strip_tags
 
 def role_required(roles):
     def decorator(view_func):
@@ -117,12 +118,14 @@ def dashboard(request):
         # Convert date to datetime for consistent comparison
         timestamp = timezone.datetime.combine(log.date, timezone.datetime.min.time())
         timestamp = timezone.make_aware(timestamp)
+        # Strip HTML tags from description for clean display
+        description = strip_tags(log.description)
         recent_activities.append({
             'type': 'log',
             'icon': 'fas fa-tasks',
             'color': 'success',
             'title': f'New SEO Log - {log.project.name}',
-            'description': f'{log.get_work_type_display()}: {log.description[:100]}...',
+            'description': f'{log.get_work_type_display()}: {description[:100]}...',
             'timestamp': timestamp
         })
     
@@ -272,9 +275,11 @@ def seo_log_list(request):
     if request.user.role == 'provider':
         logs = SEOLog.objects.filter(created_by=request.user)
         projects = Project.objects.filter(seolog__created_by=request.user).distinct()
+        providers = [request.user]  # Only show current provider
     else:
         logs = SEOLog.objects.all()
         projects = Project.objects.all()
+        providers = CustomUser.objects.filter(role='provider')  # Get all providers
     
     # Apply filters
     search = request.GET.get('search')
@@ -289,6 +294,10 @@ def seo_log_list(request):
     if log_type:
         logs = logs.filter(work_type=log_type)
     
+    provider_id = request.GET.get('provider')
+    if provider_id and request.user.role == 'admin':  # Only admin can filter by provider
+        logs = logs.filter(created_by_id=provider_id)
+    
     date_range = request.GET.get('date')
     if date_range == 'today':
         logs = logs.filter(date=timezone.now().date())
@@ -299,13 +308,14 @@ def seo_log_list(request):
         month_ago = timezone.now().date() - timezone.timedelta(days=30)
         logs = logs.filter(date__gte=month_ago)
     
-    # Order by most recent
-    logs = logs.order_by('-date')
+    # Order by most recent and select related fields for optimization
+    logs = logs.select_related('project', 'created_by').order_by('-date')
     
     return render(request, 'core/seo_log_list.html', {
         'title': 'SEO Logs',
         'logs': logs,
         'projects': projects,
+        'providers': providers,
         'log_types': SEOLog.WORK_TYPE_CHOICES,
     })
 
