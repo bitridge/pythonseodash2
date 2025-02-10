@@ -905,15 +905,24 @@ def login_view(request):
         if form.is_valid():
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
+            user = authenticate(request, username=username, password=password)
+            
             if user is not None:
-                login(request, user)
-                messages.success(request, f'Welcome back, {username}!')
-                return redirect('dashboard')
+                if user.is_active:
+                    login(request, user)
+                    
+                    # Create UserSettings if it doesn't exist
+                    UserSettings.objects.get_or_create(user=user)
+                    
+                    messages.success(request, f'Welcome back, {user.get_full_name() or username}!')
+                    return redirect('dashboard')
+                else:
+                    messages.error(request, 'Your account is inactive. Please contact the administrator.')
             else:
-                messages.error(request, 'Invalid username or password.')
+                messages.error(request, 'Invalid username/email or password.')
     else:
         form = LoginForm()
+    
     return render(request, 'core/auth/login.html', {'form': form})
 
 def logout_view(request):

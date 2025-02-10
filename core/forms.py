@@ -409,8 +409,8 @@ class ReportSectionOrderForm(forms.ModelForm):
 class LoginForm(forms.Form):
     username = forms.CharField(widget=forms.TextInput(attrs={
         'class': 'form-control',
-        'placeholder': 'Username'
-    }))
+        'placeholder': 'Username or Email'
+    }), label='Username or Email')
     password = forms.CharField(widget=forms.PasswordInput(attrs={
         'class': 'form-control',
         'placeholder': 'Password'
